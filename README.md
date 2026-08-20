@@ -2,6 +2,11 @@
 
 REST API for the trading journal platform: accounts, trades, analytics, MT5 sync, AI coaching, and import/export.
 
+**Backend repository:** https://github.com/Nisarg-13/Nisarg-TradeLab-Backend-FastAPI  
+**Frontend repository:** https://github.com/Nisarg-13/Nisarg-TradeLab-Frontend
+
+**Security:** See [SECURITY.md](./SECURITY.md) for vulnerability reporting and secret-handling guidelines.
+
 ---
 
 ## Tech stack
@@ -98,7 +103,7 @@ Do not commit `.env` (see `.gitignore`).
 | `OPENAI_API_KEY` | For AI | OpenAI API key |
 | `OPENAI_MODEL` | No | Default: `gpt-4o-mini` |
 | `GEMINI_API_KEY` | No | Fallback LLM |
-| `AI_COACH_ALLOWED_EMAILS` | No | Comma-separated emails |
+| `AI_COACH_ALLOWED_EMAILS` | No | Comma-separated emails allowed to use AI Coach (empty = disabled) |
 | `MT5_CONNECTION_TOKEN_SECRET` | Yes (prod) | HMAC secret for MT5 connection keys |
 | `BLOB_READ_WRITE_TOKEN` | For uploads | Vercel Blob token |
 
@@ -175,7 +180,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 Production: set to your FastAPI Cloud URL, e.g.:
 
 ```env
-NEXT_PUBLIC_API_BASE_URL=https://nisarg-tradelab-backend-fastapi-72bd27e6.fastapicloud.dev
+NEXT_PUBLIC_API_BASE_URL=https://your-backend.example.com
 ```
 
 CORS uses `FRONTEND_URL`. The browser also proxies via `/backend-proxy` on Vercel (see frontend `next.config.ts`).

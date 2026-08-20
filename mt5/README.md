@@ -5,8 +5,8 @@ Expert Advisor that syncs your MT5 account with Nisarg's TradeLab (read-only).
 ## Before you start
 
 1. In TradeLab: **Accounts** → select account → **Generate connection key** → copy the `TJ_...` key.
-2. Note your backend URL (e.g. `https://nisarg-tradelab-backend-fastapi-72bd27e6.fastapicloud.dev` — no trailing slash).
-3. Ensure `MT5_CONNECTION_TOKEN_SECRET` is set on FastAPI Cloud (same value used when the key was created).
+2. Note your backend URL (e.g. `https://your-backend.example.com` — no trailing slash).
+3. Ensure `MT5_CONNECTION_TOKEN_SECRET` is set on your backend deployment (same value used when the key was created).
 
 ## Compile `.mq5` → `.ex5`
 
@@ -29,7 +29,7 @@ Alternatively: in MT5 **Navigator → Expert Advisors**, right-click the EA → 
 3. Enable **Allow WebRequest for listed URL**.
 4. Add your backend host, e.g.:
    ```text
-   https://nisarg-tradelab-backend-fastapi-72bd27e6.fastapicloud.dev
+   https://your-backend.example.com
    ```
 5. Click **OK** and restart MT5 if prompted.
 
@@ -77,4 +77,4 @@ Alternatively: in MT5 **Navigator → Expert Advisors**, right-click the EA → 
 - Open position snapshots (`/mt5/positions`)
 - New deals on trade activity (`OnTradeTransaction`)
 
-TradeLab never receives your MT5 password.
+TradeLab never receives your MT5 password. Do not commit `TJ_...` connection keys or share them publicly.

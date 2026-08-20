@@ -7,7 +7,7 @@
 #property version   "1.20"
 #property description "Syncs deals, positions, and account data to TradeLab."
 
-input string InpApiBaseUrl          = "https://nisarg-tradelab-backend-fastapi-72bd27e6.fastapicloud.dev";
+input string InpApiBaseUrl          = "https://your-backend.example.com";
 input string InpConnectionKey         = "TJ_your_connection_key";
 input int    InpSyncIntervalSeconds = 1;
 input int    InpHistoryDays         = 90;
