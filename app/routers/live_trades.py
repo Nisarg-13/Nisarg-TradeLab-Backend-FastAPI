@@ -36,7 +36,10 @@ async def list_live_trades(
     users_service: UsersServiceDep,
     live_trades_service: LiveTradesServiceDep,
 ):
-    user = await users_service.find_or_create_by_clerk_user_id(clerk_user.clerk_user_id)
+    user = await users_service.find_by_clerk_user_id(clerk_user.clerk_user_id)
+    if user is None:
+        user = await users_service.find_or_create_by_clerk_user_id(clerk_user.clerk_user_id)
+
     data = await live_trades_service.get_live_trades_for_user(
         user.id,
         query.model_dump(by_alias=True),

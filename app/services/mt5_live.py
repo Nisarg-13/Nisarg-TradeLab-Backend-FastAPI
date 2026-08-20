@@ -50,7 +50,6 @@ class Mt5LiveService:
         connection.last_position_snapshot_at = latest_snapshot_at
         connection.last_synced_at = datetime.now(UTC)
         connection.status = MT5ConnectionStatus.CONNECTED
-        await self._db.commit()
 
         await self._record_sync_event(
             connection.id,
@@ -60,6 +59,7 @@ class Mt5LiveService:
                 "occurredAt": latest_snapshot_at,
             },
         )
+        await self._db.commit()
 
         return {
             "synced": len(positions),
@@ -144,6 +144,31 @@ class Mt5LiveService:
         if trade is not None:
             return trade
 
+        open_price = Decimal(str(position.open_price))
+        volume = Decimal(str(position.volume))
+
+        result = await self._db.execute(
+            select(Trade).where(
+                Trade.trading_account_id == connection.trading_account_id,
+                Trade.source == TradeSource.MT5,
+                Trade.status == TradeStatus.OPEN,
+                Trade.symbol == position.symbol.upper(),
+            )
+        )
+        for candidate in result.scalars().all():
+            if abs(candidate.average_entry_price - open_price) > Decimal("0.00005"):
+                continue
+            if abs(candidate.current_volume - volume) > Decimal("0.0001"):
+                continue
+            if (
+                candidate.external_position_id
+                and candidate.external_position_id != position.position_id
+            ):
+                continue
+            if not candidate.external_position_id:
+                candidate.external_position_id = position.position_id
+            return candidate
+
         opened_at = position.opened_at
         if opened_at.tzinfo is None:
             opened_at = opened_at.replace(tzinfo=UTC)
@@ -154,8 +179,8 @@ class Mt5LiveService:
                 Trade.source == TradeSource.MT5,
                 Trade.status == TradeStatus.OPEN,
                 Trade.symbol == position.symbol.upper(),
-                Trade.opened_at >= opened_at - timedelta(seconds=2),
-                Trade.opened_at <= opened_at + timedelta(seconds=2),
+                Trade.opened_at >= opened_at - timedelta(minutes=5),
+                Trade.opened_at <= opened_at + timedelta(minutes=5),
             )
         )
         trade = result.scalar_one_or_none()
@@ -236,7 +261,7 @@ class Mt5LiveService:
         snapshot_data = {
             "trade_id": trade.id,
             "symbol": position.symbol.upper(),
-            "direction": position.direction,
+            "direction": TradeDirection(position.direction),
             "volume": Decimal(str(position.volume)),
             "open_price": Decimal(str(position.open_price)),
             "current_price": Decimal(str(position.current_price)),

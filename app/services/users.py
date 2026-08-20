@@ -23,14 +23,10 @@ class UsersService:
         )
         existing = result.scalar_one_or_none()
 
-        email = await self._clerk_service.get_primary_email(clerk_user_id)
-
         if existing:
-            if existing.email != email:
-                existing.email = email
-                await self._db.commit()
-                await self._db.refresh(existing)
             return existing
+
+        email = await self._clerk_service.get_primary_email(clerk_user_id)
 
         user = User(
             id=generate_cuid(),
@@ -41,6 +37,12 @@ class UsersService:
         await self._db.commit()
         await self._db.refresh(user)
         return user
+
+    async def find_by_clerk_user_id(self, clerk_user_id: str) -> User | None:
+        result = await self._db.execute(
+            select(User).where(User.clerk_user_id == clerk_user_id)
+        )
+        return result.scalar_one_or_none()
 
     async def update_profile(self, user_id: str, input_data: UpdateUserInput) -> User:
         data: dict[str, object] = {}

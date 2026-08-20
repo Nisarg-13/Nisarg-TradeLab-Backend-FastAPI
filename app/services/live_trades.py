@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import Depends
@@ -15,6 +16,46 @@ from app.utils.mt5_live_status import (
     resolve_connection_live_status,
     resolve_position_live_status,
 )
+
+_PRICE_MATCH_TOLERANCE = Decimal("0.00005")
+_VOLUME_MATCH_TOLERANCE = Decimal("0.0001")
+
+
+def _prices_close(left: Decimal, right: Decimal) -> bool:
+    return abs(left - right) <= _PRICE_MATCH_TOLERANCE
+
+
+def _volumes_close(left: Decimal, right: Decimal) -> bool:
+    return abs(left - right) <= _VOLUME_MATCH_TOLERANCE
+
+
+def _resolve_snapshot_for_trade(
+    trade: Trade,
+    snapshot_by_trade_id: dict[str, Mt5PositionSnapshot],
+    snapshot_by_external_id: dict[str, Mt5PositionSnapshot],
+    snapshots: list[Mt5PositionSnapshot],
+) -> Mt5PositionSnapshot | None:
+    snapshot = snapshot_by_trade_id.get(trade.id)
+    if snapshot is not None:
+        return snapshot
+
+    if trade.external_position_id:
+        snapshot = snapshot_by_external_id.get(trade.external_position_id)
+        if snapshot is not None:
+            return snapshot
+
+    for candidate in snapshots:
+        if candidate.symbol != trade.symbol:
+            continue
+        if candidate.direction.value != trade.direction.value:
+            continue
+        if not _volumes_close(candidate.volume, trade.current_volume):
+            continue
+        if not _prices_close(candidate.open_price, trade.average_entry_price):
+            continue
+        return candidate
+
+    return None
 
 
 class LiveTradesService:
@@ -105,9 +146,12 @@ class LiveTradesService:
 
         positions = []
         for trade in open_trades:
-            snapshot = snapshot_by_trade_id.get(trade.id)
-            if snapshot is None and trade.external_position_id:
-                snapshot = snapshot_by_external_id.get(trade.external_position_id)
+            snapshot = _resolve_snapshot_for_trade(
+                trade,
+                snapshot_by_trade_id,
+                snapshot_by_external_id,
+                snapshots,
+            )
             connection = connection_by_account_id.get(trade.trading_account_id)
             connection_live_status: LiveDataStatus = (
                 resolve_connection_live_status(

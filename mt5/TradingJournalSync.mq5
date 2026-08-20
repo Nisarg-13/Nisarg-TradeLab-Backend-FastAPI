@@ -18,6 +18,7 @@ const int    DEAL_CHUNK_SIZE = 250;
 bool     g_connected = false;
 bool     g_initialSyncDone = false;
 ulong    g_lastDealTicket = 0;
+int      g_syncTick = 0;
 
 //+------------------------------------------------------------------+
 string TrimTrailingSlash(string url)
@@ -867,9 +868,17 @@ bool RunPeriodicSync()
    if(!g_connected)
       return ConnectToTradeLab();
 
-   SendHeartbeat();
-   SendAccountSnapshot();
-   SyncRecentDeals();
+   g_syncTick++;
+
+   // Heartbeat, balance, and deal catch-up every 30s; positions every tick.
+   if(g_syncTick == 1 || g_syncTick >= 30)
+     {
+      SendHeartbeat();
+      SendAccountSnapshot();
+      SyncRecentDeals();
+      g_syncTick = 0;
+     }
+
    if(!SendOpenPositions())
       Print("TradeLab: open position sync failed — retrying on next timer.");
    return true;
