@@ -15,7 +15,6 @@ input int    InpHistoryDays         = 90;
 const string EA_VERSION = "1.2.0";
 const int    DEAL_CHUNK_SIZE = 250;
 const int    DEAL_REQUEST_TIMEOUT_MS = 120000;
-const int    DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 
 bool     g_connected = false;
 bool     g_initialSyncDone = false;
@@ -63,7 +62,7 @@ string ApiBaseUrl()
   }
 
 //+------------------------------------------------------------------+
-bool PostJson(const string path, const string json, string &responseBody, int &httpStatus, int timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS)
+bool PostJson(const string path, const string json, string &responseBody, int &httpStatus, int timeoutMs = 30000)
   {
    if(StringLen(InpConnectionKey) < 4 || StringFind(InpConnectionKey, "TJ_") != 0)
      {
