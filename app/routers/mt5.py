@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import ValidationError
 
@@ -23,6 +25,7 @@ from app.services.users import UsersServiceDep
 from app.utils.validation import flatten_validation_error, parse_body
 
 router = APIRouter(prefix="/mt5", tags=["mt5"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/connections")
@@ -176,6 +179,11 @@ async def sync_positions(
 ):
     body = await request.json()
     parsed = parse_body(Mt5PositionsInput, body)
+    logger.info(
+        "MT5 position sync for connection %s: %s positions",
+        connection.id,
+        len(parsed.positions),
+    )
     data = await mt5_live_service.sync_positions(connection, parsed.positions)
     return {"data": data}
 

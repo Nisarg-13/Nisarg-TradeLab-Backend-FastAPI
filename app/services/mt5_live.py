@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+import logging
 from typing import Annotated, Any
 
 from fastapi import Depends
@@ -8,7 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.dependencies.database import DbSession
-from app.models.enums import MT5ConnectionStatus, TradeDirection, TradeEventType, TradeSource, TradeStatus
+from app.models.enums import (
+    AssetClass,
+    MT5ConnectionStatus,
+    Mt5SyncEventType,
+    TradeDirection,
+    TradeEventType,
+    TradeSource,
+    TradeStatus,
+)
 from app.models.models import (
     MT5Connection,
     Mt5PositionSnapshot,
@@ -20,6 +29,17 @@ from app.schemas.mt5 import Mt5PositionInput, Mt5ReconcileInput, Mt5TradeEventIn
 from app.services.mt5_sync import Mt5SyncService, Mt5SyncServiceDep
 from app.utils.ids import generate_cuid
 from app.utils.mt5_live_status import LiveDataStatus, resolve_connection_live_status
+
+logger = logging.getLogger(__name__)
+
+_PRICE_MATCH_TOLERANCE = Decimal("0.00005")
+_VOLUME_MATCH_TOLERANCE = Decimal("0.0001")
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class Mt5LiveService:
@@ -50,16 +70,24 @@ class Mt5LiveService:
         connection.last_position_snapshot_at = latest_snapshot_at
         connection.last_synced_at = datetime.now(UTC)
         connection.status = MT5ConnectionStatus.CONNECTED
-
-        await self._record_sync_event(
-            connection.id,
-            {
-                "eventType": "POSITION_SNAPSHOT",
-                "payload": {"count": len(positions)},
-                "occurredAt": latest_snapshot_at,
-            },
-        )
         await self._db.commit()
+
+        try:
+            await self._record_sync_event(
+                connection.id,
+                {
+                    "eventType": Mt5SyncEventType.POSITION_SNAPSHOT,
+                    "payload": {"count": len(positions)},
+                    "occurredAt": latest_snapshot_at,
+                },
+            )
+            await self._db.commit()
+        except Exception:
+            logger.exception(
+                "Failed to record MT5 position snapshot event for connection %s",
+                connection.id,
+            )
+            await self._db.rollback()
 
         return {
             "synced": len(positions),
@@ -156,9 +184,9 @@ class Mt5LiveService:
             )
         )
         for candidate in result.scalars().all():
-            if abs(candidate.average_entry_price - open_price) > Decimal("0.00005"):
+            if abs(candidate.average_entry_price - open_price) > _PRICE_MATCH_TOLERANCE:
                 continue
-            if abs(candidate.current_volume - volume) > Decimal("0.0001"):
+            if abs(candidate.current_volume - volume) > _VOLUME_MATCH_TOLERANCE:
                 continue
             if (
                 candidate.external_position_id
@@ -169,9 +197,7 @@ class Mt5LiveService:
                 candidate.external_position_id = position.position_id
             return candidate
 
-        opened_at = position.opened_at
-        if opened_at.tzinfo is None:
-            opened_at = opened_at.replace(tzinfo=UTC)
+        opened_at = _as_utc(position.opened_at)
 
         result = await self._db.execute(
             select(Trade).where(
@@ -183,9 +209,16 @@ class Mt5LiveService:
                 Trade.opened_at <= opened_at + timedelta(minutes=5),
             )
         )
-        trade = result.scalar_one_or_none()
-        if trade is None:
+        candidates = result.scalars().all()
+        if not candidates:
             return None
+
+        trade = min(
+            candidates,
+            key=lambda candidate: abs(
+                (_as_utc(candidate.opened_at) - opened_at).total_seconds()
+            ),
+        )
 
         if not trade.external_position_id:
             trade.external_position_id = position.position_id
@@ -205,7 +238,7 @@ class Mt5LiveService:
                 source=TradeSource.MT5,
                 external_position_id=position.position_id,
                 symbol=position.symbol.upper(),
-                asset_class=position.asset_class,
+                asset_class=AssetClass(position.asset_class),
                 direction=TradeDirection(position.direction),
                 status=TradeStatus.OPEN,
                 opened_at=position.opened_at,
@@ -403,10 +436,14 @@ class Mt5LiveService:
             id=generate_cuid(),
             mt5_connection_id=mt5_connection_id,
             external_event_id=external_event_id,
-            event_type=input_data["eventType"],
+            event_type=(
+                input_data["eventType"]
+                if isinstance(input_data["eventType"], Mt5SyncEventType)
+                else Mt5SyncEventType(input_data["eventType"])
+            ),
             external_position_id=input_data.get("externalPositionId"),
             payload=input_data["payload"],
-            occurred_at=input_data["occurredAt"],
+            occurred_at=_as_utc(input_data["occurredAt"]),
         )
         self._db.add(event)
         await self._db.flush()

@@ -133,16 +133,25 @@ class AnalyticsService:
         open_risk = sum(
             self._to_float(trade.initial_risk_amount) or 0.0 for trade in open_trades
         )
-        return_percentage = (
-            (summary["net_pnl"] / starting_balance) * 100 if starting_balance > 0 else None
-        )
+        realized_net_pnl = summary["net_pnl"]
+        account_pnl = current_balance - starting_balance
+        unrealized_pnl = account_pnl - realized_net_pnl
+        has_synced_balance = starting_balance > 0 and current_balance > 0
+        return_percentage = None
+        if starting_balance > 0:
+            if has_synced_balance:
+                return_percentage = (account_pnl / starting_balance) * 100
+            else:
+                return_percentage = (realized_net_pnl / starting_balance) * 100
 
         return {
             "currency": currency,
             "tradeCount": len(closed_trades) + len(open_trades),
             "closedTradeCount": len(closed_trades),
             "openTradeCount": len(open_trades),
-            "netPnl": self._format_number(summary["net_pnl"]),
+            "netPnl": self._format_number(realized_net_pnl),
+            "accountPnl": self._format_number(account_pnl),
+            "unrealizedPnl": self._format_number(unrealized_pnl),
             "grossProfit": self._format_number(summary["gross_profit"]),
             "grossLoss": self._format_number(summary["gross_loss"]),
             "returnPercentage": (

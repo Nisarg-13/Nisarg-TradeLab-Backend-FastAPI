@@ -826,12 +826,19 @@ bool SendOpenPositions()
 
    string response;
    int status = 0;
+   if(first)
+     {
+      Print("TradeLab: syncing 0 open positions.");
+      return PostJson("/api/v1/mt5/positions", json, response, status);
+     }
+
    if(!PostJson("/api/v1/mt5/positions", json, response, status))
      {
       Print("TradeLab: open position sync failed.");
       return false;
      }
 
+   Print("TradeLab: open position sync ok.");
    return true;
   }
 

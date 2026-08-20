@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated
 
@@ -27,6 +28,12 @@ def _prices_close(left: Decimal, right: Decimal) -> bool:
 
 def _volumes_close(left: Decimal, right: Decimal) -> bool:
     return abs(left - right) <= _VOLUME_MATCH_TOLERANCE
+
+
+def _format_datetime(value: datetime) -> str:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC).isoformat()
+    return value.astimezone(UTC).isoformat()
 
 
 def _resolve_snapshot_for_trade(
@@ -201,9 +208,9 @@ class LiveTradesService:
                         trade.initial_risk_amount,
                         snapshot.floating_pnl if snapshot else None,
                     ),
-                    "openedAt": trade.opened_at.isoformat(),
+                    "openedAt": _format_datetime(trade.opened_at),
                     "lastSyncedAt": (
-                        snapshot.snapshot_at.isoformat() if snapshot else None
+                        _format_datetime(snapshot.snapshot_at) if snapshot else None
                     ),
                     "liveStatus": live_status,
                 }
