@@ -135,7 +135,10 @@ class AnalyticsService:
         )
         realized_net_pnl = summary["net_pnl"]
         account_pnl = current_balance - starting_balance
-        unrealized_pnl = account_pnl - realized_net_pnl
+        if open_trades:
+            unrealized_pnl = account_pnl - realized_net_pnl
+        else:
+            unrealized_pnl = 0.0
         has_synced_balance = starting_balance > 0 and current_balance > 0
         return_percentage = None
         if starting_balance > 0:

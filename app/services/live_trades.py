@@ -132,12 +132,12 @@ class LiveTradesService:
                     last_position_snapshot_at=connection.last_position_snapshot_at,
                 ),
                 "lastHeartbeatAt": (
-                    connection.last_heartbeat_at.isoformat()
+                    _format_datetime(connection.last_heartbeat_at)
                     if connection.last_heartbeat_at
                     else None
                 ),
                 "lastSnapshotAt": (
-                    connection.last_position_snapshot_at.isoformat()
+                    _format_datetime(connection.last_position_snapshot_at)
                     if connection.last_position_snapshot_at
                     else None
                 ),
