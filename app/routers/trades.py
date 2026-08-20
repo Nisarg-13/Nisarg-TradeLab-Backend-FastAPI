@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from app.dependencies.services import CurrentUser, TradesServiceDep
 from app.schemas.trade import (
     AddExecutionInput,
+    BulkUpdateTradeJournalInput,
     CloseTradeInput,
     CreateTradeInput,
     ListTradesQuery,
@@ -31,6 +32,15 @@ async def create_trade(
 ):
     trade = await trades_service.create_for_user(user.id, body)
     return {"data": trades_service.to_trade_response(trade)}
+
+
+@router.patch("/bulk-journal")
+async def bulk_update_journal(
+    user: CurrentUser,
+    body: BulkUpdateTradeJournalInput,
+    trades_service: TradesServiceDep,
+):
+    return await trades_service.bulk_update_journal_for_user(user.id, body)
 
 
 @router.get("/{trade_id}")

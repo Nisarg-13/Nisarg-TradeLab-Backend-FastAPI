@@ -80,6 +80,17 @@ class CreateTradeInput(BaseModel):
         return _normalize_optional_price(value)
 
 
+class BulkUpdateTradeJournalInput(BaseModel):
+    trade_ids: list[str] = Field(..., min_length=1, max_length=50, alias="tradeIds")
+    chart_timeframe: Optional[ChartTimeframe] = Field(None, alias="chartTimeframe")
+    strategy_ids: Optional[list[str]] = Field(None, alias="strategyIds")
+    tag_ids: Optional[list[str]] = Field(None, alias="tagIds")
+    mistake_ids: Optional[list[str]] = Field(None, alias="mistakeIds")
+    review: Optional[TradeReviewInput] = None
+
+    model_config = {"populate_by_name": True}
+
+
 class UpdateTradeInput(BaseModel):
     current_stop_loss: OptionalPriceField = Field(None, alias="currentStopLoss")
     current_take_profit: OptionalPriceField = Field(None, alias="currentTakeProfit")

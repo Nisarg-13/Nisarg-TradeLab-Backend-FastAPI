@@ -27,6 +27,7 @@ from app.models.models import (
 )
 from app.schemas.trade import (
     AddExecutionInput,
+    BulkUpdateTradeJournalInput,
     CloseTradeInput,
     CreateTradeInput,
     ListTradesQuery,
@@ -324,6 +325,53 @@ class TradesService:
         await self._db.commit()
 
         return await self.find_by_id_for_user(trade_id, user_id)
+
+    async def bulk_update_journal_for_user(
+        self,
+        user_id: str,
+        input_data: BulkUpdateTradeJournalInput,
+    ) -> dict[str, Any]:
+        update_payload = UpdateTradeInput(
+            chart_timeframe=input_data.chart_timeframe,
+            strategy_ids=input_data.strategy_ids,
+            tag_ids=input_data.tag_ids,
+            mistake_ids=input_data.mistake_ids,
+            review=input_data.review,
+        )
+
+        await self._validate_strategies(user_id, update_payload.strategy_ids)
+        await self._validate_tags(user_id, update_payload.tag_ids)
+        await self._validate_mistakes(user_id, update_payload.mistake_ids)
+
+        updated_ids: list[str] = []
+        for trade_id in input_data.trade_ids:
+            trade = await self.find_by_id_for_user(trade_id, user_id)
+
+            if update_payload.chart_timeframe is not None:
+                trade.chart_timeframe = update_payload.chart_timeframe
+
+            if update_payload.review:
+                await self._apply_review(trade_id, update_payload.review)
+
+            await self._sync_associations(
+                trade_id,
+                update_payload.strategy_ids,
+                update_payload.tag_ids,
+                update_payload.mistake_ids,
+            )
+            updated_ids.append(trade_id)
+
+        await self._db.commit()
+
+        updated_trades = []
+        for trade_id in updated_ids:
+            trade = await self.find_by_id_for_user(trade_id, user_id)
+            updated_trades.append(self.to_trade_response(trade))
+
+        return {
+            "data": updated_trades,
+            "meta": {"updated": len(updated_trades)},
+        }
 
     async def add_execution_for_user(
         self,
