@@ -214,7 +214,6 @@ class Mt5SyncService:
                         execution_id=execution.id,
                     )
                 )
-                await self._db.commit()
                 skipped += 1
                 continue
 
@@ -559,7 +558,6 @@ class Mt5SyncService:
                 execution_id=execution.id,
             )
         )
-        await self._db.commit()
         return True
 
     async def _find_trade_for_position_level(
@@ -620,7 +618,6 @@ class Mt5SyncService:
 
         for key, value in data.items():
             setattr(trade, key, value)
-        await self._db.commit()
 
     async def _backfill_sl_tp_from_snapshots(self, trading_account_id: str) -> dict[str, int]:
         result = await self._db.execute(

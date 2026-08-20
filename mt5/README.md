@@ -58,6 +58,8 @@ Alternatively: in MT5 **Navigator → Expert Advisors**, right-click the EA → 
 
 | Issue | Fix |
 |-------|-----|
+| `HTTP 1003` on `/mt5/deals` | Request timed out during historical import — redeploy backend + recompile EA v1.2.0; live prices sync independently |
+| Live prices blank / STALE | Check Experts log for `open position sync ok`; if missing, deal import was blocking sync in older EA versions |
 | `WebRequest failed (4014)` or `(4060)` | Enable **Allow WebRequest for listed URL** and add backend URL; restart MT5 |
 | `WebRequest failed` | Add backend URL to allowed WebRequest list |
 | `401 Unauthorized` | Wrong or revoked connection key; regenerate in TradeLab |

@@ -4,7 +4,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Nisarg's TradeLab"
 #property link      "https://github.com/Nisarg-13/Nisarg-TradeLab-Backend-FastAPI"
-#property version   "1.03"
+#property version   "1.20"
 #property description "Syncs deals, positions, and account data to TradeLab."
 
 input string InpApiBaseUrl          = "https://nisarg-tradelab-backend-fastapi-72bd27e6.fastapicloud.dev";
@@ -12,11 +12,14 @@ input string InpConnectionKey         = "TJ_your_connection_key";
 input int    InpSyncIntervalSeconds = 1;
 input int    InpHistoryDays         = 90;
 
-const string EA_VERSION = "1.1.2";
+const string EA_VERSION = "1.2.0";
 const int    DEAL_CHUNK_SIZE = 250;
+const int    DEAL_REQUEST_TIMEOUT_MS = 120000;
+const int    DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 
 bool     g_connected = false;
 bool     g_initialSyncDone = false;
+bool     g_historicalDealsDone = false;
 ulong    g_lastDealTicket = 0;
 int      g_syncTick = 0;
 
@@ -60,7 +63,7 @@ string ApiBaseUrl()
   }
 
 //+------------------------------------------------------------------+
-bool PostJson(const string path, const string json, string &responseBody, int &httpStatus)
+bool PostJson(const string path, const string json, string &responseBody, int &httpStatus, int timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS)
   {
    if(StringLen(InpConnectionKey) < 4 || StringFind(InpConnectionKey, "TJ_") != 0)
      {
@@ -82,7 +85,7 @@ bool PostJson(const string path, const string json, string &responseBody, int &h
       ArrayResize(data, bytes - 1);
 
    ResetLastError();
-   httpStatus = WebRequest("POST", url, headers, 30000, data, result, resultHeaders);
+   httpStatus = WebRequest("POST", url, headers, timeoutMs, data, result, resultHeaders);
 
    if(httpStatus == -1)
      {
@@ -98,6 +101,8 @@ bool PostJson(const string path, const string json, string &responseBody, int &h
    if(httpStatus < 200 || httpStatus >= 300)
      {
       Print("TradeLab HTTP ", httpStatus, " for ", path, " response=", responseBody);
+      if(httpStatus == 1003)
+         Print("TradeLab: request timed out after ", timeoutMs, "ms — retrying on next timer.");
       return false;
      }
 
@@ -579,7 +584,7 @@ bool SendDealsChunk(const ulong &tickets[], const int start, const int count)
 
    string response;
    int status = 0;
-   if(!PostJson("/api/v1/mt5/deals", json, response, status))
+   if(!PostJson("/api/v1/mt5/deals", json, response, status, DEAL_REQUEST_TIMEOUT_MS))
       return false;
 
    Print("TradeLab: imported deals chunk (", added, "). ", response);
@@ -853,20 +858,23 @@ bool RunInitialSync()
    if(!SendInstruments())
       Print("TradeLab: instrument sync failed — continuing with deal import.");
 
-   if(!ImportHistoricalDeals())
-     {
+   // Sync live prices first — must not wait on historical deal import.
+   if(!SendOpenPositions())
+      Print("TradeLab: open position sync failed — will retry on timer.");
+
+   bool dealsOk = ImportHistoricalDeals();
+   if(!dealsOk)
       Print("TradeLab: historical deal import failed — will retry on timer.");
-      return false;
+   else
+     {
+      g_historicalDealsDone = true;
+      if(!SendHistoricalPositionLevels())
+         Print("TradeLab: historical SL/TP sync failed — will retry on next attach.");
      }
 
-   if(!SendHistoricalPositionLevels())
-      Print("TradeLab: historical SL/TP sync failed — will retry on next attach.");
-
-   if(!SendOpenPositions())
-      Print("TradeLab: open position sync failed — live PnL will update on next timer.");
    g_initialSyncDone = true;
    Print("TradeLab: initial sync complete.");
-   return true;
+   return dealsOk;
   }
 
 //+------------------------------------------------------------------+
@@ -883,6 +891,14 @@ bool RunPeriodicSync()
       SendHeartbeat();
       SendAccountSnapshot();
       SyncRecentDeals();
+      if(!g_historicalDealsDone)
+        {
+         if(ImportHistoricalDeals())
+           {
+            g_historicalDealsDone = true;
+            SendHistoricalPositionLevels();
+           }
+        }
       g_syncTick = 0;
      }
 
