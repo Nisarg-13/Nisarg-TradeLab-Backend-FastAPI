@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 
@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.dependencies.database import DbSession
-from app.models.enums import MT5ConnectionStatus, TradeEventType, TradeSource, TradeStatus
+from app.models.enums import MT5ConnectionStatus, TradeDirection, TradeEventType, TradeSource, TradeStatus
 from app.models.models import (
     MT5Connection,
     Mt5PositionSnapshot,
@@ -129,9 +129,9 @@ class Mt5LiveService:
             "positionsSynced": position_result["synced"],
         }
 
-    async def _upsert_position_snapshot(
+    async def _find_open_trade_for_position(
         self, connection: MT5Connection, position: Mt5PositionInput
-    ) -> str:
+    ) -> Trade | None:
         result = await self._db.execute(
             select(Trade).where(
                 Trade.trading_account_id == connection.trading_account_id,
@@ -141,6 +141,36 @@ class Mt5LiveService:
             )
         )
         trade = result.scalar_one_or_none()
+        if trade is not None:
+            return trade
+
+        opened_at = position.opened_at
+        if opened_at.tzinfo is None:
+            opened_at = opened_at.replace(tzinfo=UTC)
+
+        result = await self._db.execute(
+            select(Trade).where(
+                Trade.trading_account_id == connection.trading_account_id,
+                Trade.source == TradeSource.MT5,
+                Trade.status == TradeStatus.OPEN,
+                Trade.symbol == position.symbol.upper(),
+                Trade.opened_at >= opened_at - timedelta(seconds=2),
+                Trade.opened_at <= opened_at + timedelta(seconds=2),
+            )
+        )
+        trade = result.scalar_one_or_none()
+        if trade is None:
+            return None
+
+        if not trade.external_position_id:
+            trade.external_position_id = position.position_id
+
+        return trade
+
+    async def _upsert_position_snapshot(
+        self, connection: MT5Connection, position: Mt5PositionInput
+    ) -> str:
+        trade = await self._find_open_trade_for_position(connection, position)
 
         if trade is None:
             trade = Trade(
@@ -151,7 +181,7 @@ class Mt5LiveService:
                 external_position_id=position.position_id,
                 symbol=position.symbol.upper(),
                 asset_class=position.asset_class,
-                direction=position.direction,
+                direction=TradeDirection(position.direction),
                 status=TradeStatus.OPEN,
                 opened_at=position.opened_at,
                 average_entry_price=Decimal(str(position.open_price)),

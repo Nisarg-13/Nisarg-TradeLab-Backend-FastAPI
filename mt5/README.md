@@ -40,7 +40,7 @@ Alternatively: in MT5 **Navigator → Expert Advisors**, right-click the EA → 
 3. Inputs:
    - **ApiBaseUrl** — your FastAPI backend URL (no trailing slash)
    - **ConnectionKey** — your `TJ_...` key from TradeLab
-   - **SyncIntervalSeconds** — default `30` (live position updates)
+   - **SyncIntervalSeconds** — default `1` (live position updates every second)
    - **HistoryDays** — default `90` (initial deal import window)
 4. Enable **Allow Algo Trading** (toolbar button).
 5. Check the **Experts** tab for `TradeLab: connected` and sync messages.

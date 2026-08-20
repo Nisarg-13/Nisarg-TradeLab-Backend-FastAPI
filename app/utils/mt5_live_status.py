@@ -4,7 +4,7 @@ from typing import Literal
 LiveDataStatus = Literal["LIVE", "STALE", "DISCONNECTED"]
 
 HEARTBEAT_DISCONNECTED_MS = 5 * 60 * 1000
-SNAPSHOT_STALE_MS = 90 * 1000
+SNAPSHOT_STALE_MS = 5 * 1000
 
 
 def resolve_connection_live_status(

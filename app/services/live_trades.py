@@ -55,20 +55,24 @@ class LiveTradesService:
         )
         open_trades = trade_result.scalars().all()
 
-        snapshot_result = await self._db.execute(
-            select(Mt5PositionSnapshot).where(
-                Mt5PositionSnapshot.mt5_connection_id.in_(
-                    [connection.id for connection in connections]
-                ),
-                Mt5PositionSnapshot.trade_id.in_([trade.id for trade in open_trades]),
+        connection_ids = [connection.id for connection in connections]
+
+        if connection_ids:
+            snapshot_result = await self._db.execute(
+                select(Mt5PositionSnapshot)
+                .where(Mt5PositionSnapshot.mt5_connection_id.in_(connection_ids))
+                .order_by(Mt5PositionSnapshot.snapshot_at.desc())
             )
-        )
-        snapshots = snapshot_result.scalars().all()
-        snapshot_by_trade_id = {
-            snapshot.trade_id: snapshot
-            for snapshot in snapshots
-            if snapshot.trade_id
-        }
+            snapshots = snapshot_result.scalars().all()
+        else:
+            snapshots = []
+        snapshot_by_trade_id: dict[str, Mt5PositionSnapshot] = {}
+        snapshot_by_external_id: dict[str, Mt5PositionSnapshot] = {}
+        for snapshot in snapshots:
+            if snapshot.trade_id and snapshot.trade_id not in snapshot_by_trade_id:
+                snapshot_by_trade_id[snapshot.trade_id] = snapshot
+            if snapshot.external_position_id not in snapshot_by_external_id:
+                snapshot_by_external_id[snapshot.external_position_id] = snapshot
 
         connection_by_account_id = {
             connection.trading_account_id: connection for connection in connections
@@ -102,6 +106,8 @@ class LiveTradesService:
         positions = []
         for trade in open_trades:
             snapshot = snapshot_by_trade_id.get(trade.id)
+            if snapshot is None and trade.external_position_id:
+                snapshot = snapshot_by_external_id.get(trade.external_position_id)
             connection = connection_by_account_id.get(trade.trading_account_id)
             connection_live_status: LiveDataStatus = (
                 resolve_connection_live_status(

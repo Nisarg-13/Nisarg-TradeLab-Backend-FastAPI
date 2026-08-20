@@ -9,7 +9,7 @@
 
 input string InpApiBaseUrl          = "https://nisarg-tradelab-backend-fastapi-72bd27e6.fastapicloud.dev";
 input string InpConnectionKey         = "TJ_your_connection_key";
-input int    InpSyncIntervalSeconds = 30;
+input int    InpSyncIntervalSeconds = 1;
 input int    InpHistoryDays         = 90;
 
 const string EA_VERSION = "1.1.2";
@@ -825,7 +825,13 @@ bool SendOpenPositions()
 
    string response;
    int status = 0;
-   return PostJson("/api/v1/mt5/positions", json, response, status);
+   if(!PostJson("/api/v1/mt5/positions", json, response, status))
+     {
+      Print("TradeLab: open position sync failed.");
+      return false;
+     }
+
+   return true;
   }
 
 //+------------------------------------------------------------------+
@@ -848,7 +854,8 @@ bool RunInitialSync()
    if(!SendHistoricalPositionLevels())
       Print("TradeLab: historical SL/TP sync failed — will retry on next attach.");
 
-   SendOpenPositions();
+   if(!SendOpenPositions())
+      Print("TradeLab: open position sync failed — live PnL will update on next timer.");
    g_initialSyncDone = true;
    Print("TradeLab: initial sync complete.");
    return true;
@@ -863,7 +870,8 @@ bool RunPeriodicSync()
    SendHeartbeat();
    SendAccountSnapshot();
    SyncRecentDeals();
-   SendOpenPositions();
+   if(!SendOpenPositions())
+      Print("TradeLab: open position sync failed — retrying on next timer.");
    return true;
   }
 
@@ -882,9 +890,9 @@ int OnInit()
       return INIT_PARAMETERS_INCORRECT;
      }
 
-   if(InpSyncIntervalSeconds < 5)
+   if(InpSyncIntervalSeconds < 1)
      {
-      Print("TradeLab: SyncIntervalSeconds must be at least 5.");
+      Print("TradeLab: SyncIntervalSeconds must be at least 1.");
       return INIT_PARAMETERS_INCORRECT;
      }
 
