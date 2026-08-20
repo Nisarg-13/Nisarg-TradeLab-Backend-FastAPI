@@ -172,7 +172,26 @@ Entrypoint in `pyproject.toml`: `app.main:app`
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 ```
 
-Production: set to your FastAPI Cloud URL. CORS uses `FRONTEND_URL`.
+Production: set to your FastAPI Cloud URL, e.g.:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://nisarg-tradelab-backend-fastapi-72bd27e6.fastapicloud.dev
+```
+
+CORS uses `FRONTEND_URL`. The browser also proxies via `/backend-proxy` on Vercel (see frontend `next.config.ts`).
+
+---
+
+## MT5 Expert Advisor
+
+Source and setup guide: [`mt5/`](./mt5/)
+
+1. Generate a connection key in TradeLab (**Accounts → MT5 Connection**).
+2. Compile `mt5/TradingJournalSync.mq5` in MetaEditor.
+3. Allow WebRequest for your FastAPI backend URL in MT5 options.
+4. Attach the EA with **ApiBaseUrl** = same backend URL and **ConnectionKey** = your `TJ_...` key.
+
+EA endpoints use Bearer auth with the connection key (not Clerk JWT).
 
 ---
 
