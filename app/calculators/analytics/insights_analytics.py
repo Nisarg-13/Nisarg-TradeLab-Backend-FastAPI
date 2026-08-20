@@ -248,6 +248,12 @@ def _summarize_journal_coverage(trades: list[InsightsTrade]) -> JournalCoverage:
 def _summarize_plan_compliance_by_timeframe(
     trades: list[InsightsTrade],
 ) -> list[PlanComplianceBreakdown]:
+    def plan_compliance(trade: InsightsTrade) -> str | None:
+        review = trade.get("review")
+        if review is None:
+            return None
+        return review.get("plan_compliance")
+
     groups: dict[str, list[InsightsTrade]] = {}
     for trade in trades:
         key = trade.get("chart_timeframe") or "NOT_SET"
@@ -258,12 +264,12 @@ def _summarize_plan_compliance_by_timeframe(
         followed = [
             trade
             for trade in grouped_trades
-            if trade.get("review", {}).get("plan_compliance") == "FOLLOWED"
+            if plan_compliance(trade) == "FOLLOWED"
         ]
         not_followed = [
             trade
             for trade in grouped_trades
-            if trade.get("review", {}).get("plan_compliance")
+            if plan_compliance(trade)
             in {"DID_NOT_FOLLOW", "PARTIALLY_FOLLOWED"}
         ]
 
@@ -275,18 +281,18 @@ def _summarize_plan_compliance_by_timeframe(
                 "partially_followed": sum(
                     1
                     for trade in grouped_trades
-                    if trade.get("review", {}).get("plan_compliance") == "PARTIALLY_FOLLOWED"
+                    if plan_compliance(trade) == "PARTIALLY_FOLLOWED"
                 ),
                 "did_not_follow": sum(
                     1
                     for trade in grouped_trades
-                    if trade.get("review", {}).get("plan_compliance") == "DID_NOT_FOLLOW"
+                    if plan_compliance(trade) == "DID_NOT_FOLLOW"
                 ),
                 "not_reviewed": sum(
                     1
                     for trade in grouped_trades
-                    if not trade.get("review", {}).get("plan_compliance")
-                    or trade.get("review", {}).get("plan_compliance") == "NOT_REVIEWED"
+                    if not plan_compliance(trade)
+                    or plan_compliance(trade) == "NOT_REVIEWED"
                 ),
                 "followed_win_rate": calculate_win_rate(followed),
                 "not_followed_win_rate": calculate_win_rate(not_followed),

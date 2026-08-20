@@ -962,7 +962,7 @@ class AnalyticsService:
             "points": [
                 {
                     "index": point["index"],
-                    "closedAt": point["closed_at"].isoformat(),
+                    "closedAt": point["closed_at"],
                     "netPnl": self._format_number(point["net_pnl"]),
                     "windowTradeCount": point["window_trade_count"],
                     "windowWinRate": (
