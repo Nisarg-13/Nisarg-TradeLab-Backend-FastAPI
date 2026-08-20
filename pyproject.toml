@@ -2,10 +2,9 @@
 name = "nisarg-tradelab-backend-fastapi"
 version = "0.1.0"
 description = "Nisarg TradeLab FastAPI backend"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
+    "fastapi[standard]",
     "sqlalchemy[asyncio]",
     "asyncpg",
     "pydantic-settings",
