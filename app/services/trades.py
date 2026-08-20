@@ -35,6 +35,7 @@ from app.schemas.trade import (
 )
 from app.services.accounts import AccountsService
 from app.services.instruments import InstrumentsService
+from app.utils.decimal_format import format_decimal
 from app.utils.ids import generate_cuid
 from app.utils.ownership import assert_resource_ownership
 
@@ -555,24 +556,14 @@ class TradesService:
             "status": trade.status.value,
             "openedAt": trade.opened_at.isoformat(),
             "closedAt": trade.closed_at.isoformat() if trade.closed_at else None,
-            "averageEntryPrice": str(trade.average_entry_price),
-            "averageExitPrice": (
-                str(trade.average_exit_price) if trade.average_exit_price else None
-            ),
-            "initialVolume": str(trade.initial_volume),
-            "currentVolume": str(trade.current_volume),
-            "initialStopLoss": (
-                str(trade.initial_stop_loss) if trade.initial_stop_loss else None
-            ),
-            "currentStopLoss": (
-                str(trade.current_stop_loss) if trade.current_stop_loss else None
-            ),
-            "initialTakeProfit": (
-                str(trade.initial_take_profit) if trade.initial_take_profit else None
-            ),
-            "currentTakeProfit": (
-                str(trade.current_take_profit) if trade.current_take_profit else None
-            ),
+            "averageEntryPrice": format_decimal(trade.average_entry_price),
+            "averageExitPrice": format_decimal(trade.average_exit_price),
+            "initialVolume": format_decimal(trade.initial_volume),
+            "currentVolume": format_decimal(trade.current_volume),
+            "initialStopLoss": format_decimal(trade.initial_stop_loss),
+            "currentStopLoss": format_decimal(trade.current_stop_loss),
+            "initialTakeProfit": format_decimal(trade.initial_take_profit),
+            "currentTakeProfit": format_decimal(trade.current_take_profit),
             "accountBalanceAtEntry": (
                 str(trade.account_balance_at_entry)
                 if trade.account_balance_at_entry is not None
@@ -646,8 +637,8 @@ class TradesService:
             "id": execution.id,
             "tradeId": execution.trade_id,
             "type": execution.type.value,
-            "price": str(execution.price),
-            "volume": str(execution.volume),
+            "price": format_decimal(execution.price),
+            "volume": format_decimal(execution.volume),
             "profit": str(execution.profit),
             "commission": str(execution.commission),
             "swap": str(execution.swap),

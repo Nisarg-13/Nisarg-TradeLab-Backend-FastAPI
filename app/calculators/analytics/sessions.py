@@ -10,6 +10,14 @@ TRADING_SESSION_LABELS: dict[TradingSession, str] = {
     "OFF_HOURS": "Off hours",
 }
 
+TRADING_SESSION_ORDER: list[TradingSession] = [
+    "ASIA",
+    "LONDON",
+    "OVERLAP",
+    "NEW_YORK",
+    "OFF_HOURS",
+]
+
 
 def get_trading_session(local_hour: int) -> TradingSession:
     if 0 <= local_hour <= 7:

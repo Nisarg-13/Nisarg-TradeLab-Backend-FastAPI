@@ -26,6 +26,18 @@ async def get_instruments(
     return {"data": data}
 
 
+@router.get("/sessions")
+async def get_sessions(
+    user: CurrentUser,
+    analytics_service: AnalyticsServiceDep,
+    query: AnalyticsQuery = Depends(),
+):
+    data = await analytics_service.get_session_performance_for_user(
+        user.id, query, user.timezone
+    )
+    return {"data": data}
+
+
 @router.get("/strategies")
 async def get_strategies(
     user: CurrentUser,

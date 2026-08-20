@@ -24,6 +24,7 @@ from app.utils.csv_trade_mapper import (
     map_csv_trades,
     to_csv,
 )
+from app.utils.decimal_format import format_decimal
 from app.utils.ids import generate_cuid
 
 
@@ -180,8 +181,8 @@ class ImportExportService:
                     trade.direction.value,
                     trade.opened_at.astimezone(UTC).isoformat(),
                     trade.closed_at.astimezone(UTC).isoformat() if trade.closed_at else "",
-                    str(trade.average_entry_price),
-                    str(trade.average_exit_price) if trade.average_exit_price else "",
+                    format_decimal(trade.average_entry_price) or "",
+                    format_decimal(trade.average_exit_price) or "",
                     str(trade.initial_volume),
                     str(trade.net_pnl),
                     str(trade.commission),
@@ -224,12 +225,8 @@ class ImportExportService:
                         if trade.closed_at
                         else None
                     ),
-                    "averageEntryPrice": str(trade.average_entry_price),
-                    "averageExitPrice": (
-                        str(trade.average_exit_price)
-                        if trade.average_exit_price is not None
-                        else None
-                    ),
+                    "averageEntryPrice": format_decimal(trade.average_entry_price),
+                    "averageExitPrice": format_decimal(trade.average_exit_price),
                     "initialVolume": str(trade.initial_volume),
                     "netPnl": str(trade.net_pnl),
                     "commission": str(trade.commission),

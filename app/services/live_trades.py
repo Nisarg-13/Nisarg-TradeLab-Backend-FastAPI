@@ -9,6 +9,7 @@ from app.dependencies.database import DbSession
 from app.models.enums import TradeStatus
 from app.models.models import MT5Connection, Mt5PositionSnapshot, Trade
 from app.services.accounts import AccountsService, AccountsServiceDep
+from app.utils.decimal_format import format_decimal
 from app.utils.mt5_live_status import (
     LiveDataStatus,
     resolve_connection_live_status,
@@ -131,21 +132,13 @@ class LiveTradesService:
                     "symbol": trade.symbol,
                     "direction": trade.direction.value,
                     "status": trade.status.value,
-                    "averageEntryPrice": str(trade.average_entry_price),
+                    "averageEntryPrice": format_decimal(trade.average_entry_price),
                     "currentPrice": (
-                        str(snapshot.current_price) if snapshot else None
+                        format_decimal(snapshot.current_price) if snapshot else None
                     ),
-                    "currentStopLoss": (
-                        str(trade.current_stop_loss)
-                        if trade.current_stop_loss is not None
-                        else None
-                    ),
-                    "currentTakeProfit": (
-                        str(trade.current_take_profit)
-                        if trade.current_take_profit is not None
-                        else None
-                    ),
-                    "currentVolume": str(trade.current_volume),
+                    "currentStopLoss": format_decimal(trade.current_stop_loss),
+                    "currentTakeProfit": format_decimal(trade.current_take_profit),
+                    "currentVolume": format_decimal(trade.current_volume),
                     "initialRiskAmount": (
                         str(trade.initial_risk_amount)
                         if trade.initial_risk_amount is not None

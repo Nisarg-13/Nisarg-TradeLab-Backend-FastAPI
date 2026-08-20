@@ -438,6 +438,28 @@ class AnalyticsService:
 
         return [self._format_risk_group(group) for group in groups]
 
+    async def get_session_performance_for_user(
+        self, user_id: str, query: AnalyticsQuery, timezone: str
+    ) -> list[dict[str, Any]]:
+        closed_trades = (await self.load_trades(user_id, query))["closed_trades"]
+        analytics = summarize_time_analytics(
+            [self._to_time_trade(trade) for trade in closed_trades],
+            timezone,
+        )
+
+        return [
+            {
+                "session": group["key"],
+                "sessionLabel": group["label"],
+                **{
+                    key: value
+                    for key, value in self._format_metrics_group(group).items()
+                    if key not in {"key", "label"}
+                },
+            }
+            for group in analytics["sessions"]
+        ]
+
     async def get_time_analytics_for_user(
         self, user_id: str, query: AnalyticsQuery, timezone: str
     ) -> dict[str, Any]:

@@ -3,6 +3,7 @@ from typing import TypedDict
 
 from .sessions import (
     TRADING_SESSION_LABELS,
+    TRADING_SESSION_ORDER,
     format_two_hour_window_label,
     get_trading_session,
     get_two_hour_window_start,
@@ -65,6 +66,13 @@ def summarize_time_analytics(
         with_parts,
         lambda trade: trade["session"],
         lambda key, _grouped: TRADING_SESSION_LABELS[key],
+    )
+    sessions.sort(
+        key=lambda group: (
+            TRADING_SESSION_ORDER.index(group["key"])
+            if group["key"] in TRADING_SESSION_ORDER
+            else len(TRADING_SESSION_ORDER)
+        )
     )
 
     two_hour_windows = group_trade_metrics(
