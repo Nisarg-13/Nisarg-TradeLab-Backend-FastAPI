@@ -4,7 +4,28 @@ from typing import Literal
 LiveDataStatus = Literal["LIVE", "STALE", "DISCONNECTED"]
 
 HEARTBEAT_DISCONNECTED_MS = 5 * 60 * 1000
-SNAPSHOT_STALE_MS = 15 * 1000
+SNAPSHOT_STALE_MS = 90 * 1000
+
+
+def resolve_live_data_status(
+    *,
+    last_heartbeat_at: datetime | None,
+    last_position_snapshot_at: datetime | None,
+    now: datetime | None = None,
+) -> LiveDataStatus:
+    connection_status = resolve_connection_live_status(
+        last_heartbeat_at=last_heartbeat_at,
+        now=now,
+    )
+
+    if connection_status == "DISCONNECTED":
+        return "DISCONNECTED"
+
+    return resolve_position_live_status(
+        connection_status="LIVE",
+        snapshot_at=last_position_snapshot_at,
+        now=now,
+    )
 
 
 def resolve_connection_live_status(
@@ -36,6 +57,9 @@ def resolve_position_live_status(
 ) -> LiveDataStatus:
     if connection_status == "DISCONNECTED":
         return "DISCONNECTED"
+
+    if connection_status == "STALE":
+        return "STALE"
 
     if snapshot_at is None:
         return "STALE"

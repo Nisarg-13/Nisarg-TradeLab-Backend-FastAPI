@@ -4,7 +4,7 @@ import logging
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -57,9 +57,34 @@ class Mt5LiveService:
     ) -> dict[str, object]:
         synced_position_ids: list[str] = []
 
+        incoming_position_ids = {position.position_id for position in positions}
+
         for position in positions:
-            await self._upsert_position_snapshot(connection, position)
-            synced_position_ids.append(position.position_id)
+            try:
+                await self._upsert_position_snapshot(connection, position)
+                synced_position_ids.append(position.position_id)
+            except Exception:
+                logger.exception(
+                    "Failed to upsert MT5 position snapshot %s for connection %s",
+                    position.position_id,
+                    connection.id,
+                )
+
+        if incoming_position_ids:
+            await self._db.execute(
+                delete(Mt5PositionSnapshot).where(
+                    Mt5PositionSnapshot.mt5_connection_id == connection.id,
+                    Mt5PositionSnapshot.external_position_id.not_in(
+                        incoming_position_ids
+                    ),
+                )
+            )
+        else:
+            await self._db.execute(
+                delete(Mt5PositionSnapshot).where(
+                    Mt5PositionSnapshot.mt5_connection_id == connection.id
+                )
+            )
 
         latest_snapshot_at = (
             max(position.snapshot_at for position in positions)
@@ -270,6 +295,8 @@ class Mt5LiveService:
         else:
             trade.current_volume = Decimal(str(position.volume))
             trade.swap = Decimal(str(position.swap))
+            if not trade.external_position_id:
+                trade.external_position_id = position.position_id
             if position.stop_loss is not None:
                 trade.current_stop_loss = (
                     Decimal(str(position.stop_loss))

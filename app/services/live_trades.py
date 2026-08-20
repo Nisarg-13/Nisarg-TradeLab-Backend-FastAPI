@@ -14,16 +14,11 @@ from app.services.accounts import AccountsService, AccountsServiceDep
 from app.utils.decimal_format import format_decimal
 from app.utils.mt5_live_status import (
     LiveDataStatus,
-    resolve_connection_live_status,
+    resolve_live_data_status,
     resolve_position_live_status,
 )
 
-_PRICE_MATCH_TOLERANCE = Decimal("0.00005")
 _VOLUME_MATCH_TOLERANCE = Decimal("0.0001")
-
-
-def _prices_close(left: Decimal, right: Decimal) -> bool:
-    return abs(left - right) <= _PRICE_MATCH_TOLERANCE
 
 
 def _volumes_close(left: Decimal, right: Decimal) -> bool:
@@ -57,8 +52,6 @@ def _resolve_snapshot_for_trade(
         if candidate.direction.value != trade.direction.value:
             continue
         if not _volumes_close(candidate.volume, trade.current_volume):
-            continue
-        if not _prices_close(candidate.open_price, trade.average_entry_price):
             continue
         return candidate
 
@@ -134,8 +127,9 @@ class LiveTradesService:
                 "mt5Login": connection.mt5_login,
                 "serverName": connection.server_name,
                 "connectionStatus": connection.status.value,
-                "liveStatus": resolve_connection_live_status(
-                    last_heartbeat_at=connection.last_heartbeat_at
+                "liveStatus": resolve_live_data_status(
+                    last_heartbeat_at=connection.last_heartbeat_at,
+                    last_position_snapshot_at=connection.last_position_snapshot_at,
                 ),
                 "lastHeartbeatAt": (
                     connection.last_heartbeat_at.isoformat()
@@ -153,16 +147,26 @@ class LiveTradesService:
 
         positions = []
         for trade in open_trades:
+            connection = connection_by_account_id.get(trade.trading_account_id)
+            account_snapshots = (
+                [
+                    snapshot
+                    for snapshot in snapshots
+                    if snapshot.mt5_connection_id == connection.id
+                ]
+                if connection
+                else []
+            )
             snapshot = _resolve_snapshot_for_trade(
                 trade,
                 snapshot_by_trade_id,
                 snapshot_by_external_id,
-                snapshots,
+                account_snapshots,
             )
-            connection = connection_by_account_id.get(trade.trading_account_id)
             connection_live_status: LiveDataStatus = (
-                resolve_connection_live_status(
-                    last_heartbeat_at=connection.last_heartbeat_at
+                resolve_live_data_status(
+                    last_heartbeat_at=connection.last_heartbeat_at,
+                    last_position_snapshot_at=connection.last_position_snapshot_at,
                 )
                 if connection
                 else "DISCONNECTED"
@@ -174,6 +178,17 @@ class LiveTradesService:
                 )
                 if trade.source.value == "MT5"
                 else "LIVE"
+            )
+
+            stop_loss = (
+                snapshot.stop_loss
+                if snapshot and snapshot.stop_loss is not None
+                else trade.current_stop_loss
+            )
+            take_profit = (
+                snapshot.take_profit
+                if snapshot and snapshot.take_profit is not None
+                else trade.current_take_profit
             )
 
             positions.append(
@@ -193,8 +208,8 @@ class LiveTradesService:
                     "currentPrice": (
                         format_decimal(snapshot.current_price) if snapshot else None
                     ),
-                    "currentStopLoss": format_decimal(trade.current_stop_loss),
-                    "currentTakeProfit": format_decimal(trade.current_take_profit),
+                    "currentStopLoss": format_decimal(stop_loss),
+                    "currentTakeProfit": format_decimal(take_profit),
                     "currentVolume": format_decimal(trade.current_volume),
                     "initialRiskAmount": (
                         str(trade.initial_risk_amount)

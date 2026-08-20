@@ -277,6 +277,21 @@ class Mt5PositionInput(BaseModel):
             return value.strip()
         return value
 
+    @field_validator("volume", mode="before")
+    @classmethod
+    def coerce_volume(cls, value: object) -> float:
+        return _coerce_positive(value, 0.00000001)
+
+    @field_validator("open_price", "current_price", mode="before")
+    @classmethod
+    def coerce_prices(cls, value: object) -> float:
+        return _coerce_positive(value, 0.00000001)
+
+    @field_validator("stop_loss", "take_profit", mode="before")
+    @classmethod
+    def coerce_optional_price(cls, value: object) -> float | None:
+        return _optional_mt5_price(value)
+
 
 class Mt5PositionsInput(BaseModel):
     model_config = ConfigDict(populate_by_name=True)

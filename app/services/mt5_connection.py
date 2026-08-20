@@ -14,7 +14,7 @@ from app.schemas.mt5 import CreateMt5ConnectionInput
 from app.services.accounts import AccountsService, AccountsServiceDep
 from app.utils.ids import generate_cuid
 from app.utils.mt5_key import generate_connection_key, hash_connection_key
-from app.utils.mt5_live_status import resolve_connection_live_status
+from app.utils.mt5_live_status import resolve_live_data_status
 
 
 class Mt5ConnectionService:
@@ -179,8 +179,9 @@ class Mt5ConnectionService:
                 if connection.last_position_snapshot_at
                 else None
             ),
-            "liveDataStatus": resolve_connection_live_status(
-                last_heartbeat_at=connection.last_heartbeat_at
+            "liveDataStatus": resolve_live_data_status(
+                last_heartbeat_at=connection.last_heartbeat_at,
+                last_position_snapshot_at=connection.last_position_snapshot_at,
             ),
             "eaVersion": connection.ea_version,
             "createdAt": connection.created_at.astimezone(UTC).isoformat(),
