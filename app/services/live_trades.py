@@ -1,0 +1,217 @@
+from typing import Annotated
+
+from fastapi import Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.dependencies.database import DbSession
+from app.models.enums import TradeStatus
+from app.models.models import MT5Connection, Mt5PositionSnapshot, Trade
+from app.services.accounts import AccountsService, AccountsServiceDep
+from app.utils.mt5_live_status import (
+    LiveDataStatus,
+    resolve_connection_live_status,
+    resolve_position_live_status,
+)
+
+
+class LiveTradesService:
+    def __init__(self, db: AsyncSession, accounts_service: AccountsService) -> None:
+        self._db = db
+        self._accounts_service = accounts_service
+
+    async def get_live_trades_for_user(
+        self, user_id: str, query: dict[str, str | None]
+    ) -> dict[str, object]:
+        trading_account_id = query.get("tradingAccountId")
+
+        if trading_account_id:
+            await self._accounts_service.find_by_id_for_user(trading_account_id, user_id)
+
+        connection_query = select(MT5Connection).where(MT5Connection.user_id == user_id)
+        if trading_account_id:
+            connection_query = connection_query.where(
+                MT5Connection.trading_account_id == trading_account_id
+            )
+
+        connection_result = await self._db.execute(
+            connection_query.options(selectinload(MT5Connection.trading_account))
+        )
+        connections = connection_result.scalars().all()
+
+        trade_query = select(Trade).where(
+            Trade.user_id == user_id,
+            Trade.status == TradeStatus.OPEN,
+        )
+        if trading_account_id:
+            trade_query = trade_query.where(Trade.trading_account_id == trading_account_id)
+
+        trade_result = await self._db.execute(
+            trade_query.options(selectinload(Trade.trading_account)).order_by(
+                Trade.opened_at.desc()
+            ).limit(100)
+        )
+        open_trades = trade_result.scalars().all()
+
+        snapshot_result = await self._db.execute(
+            select(Mt5PositionSnapshot).where(
+                Mt5PositionSnapshot.mt5_connection_id.in_(
+                    [connection.id for connection in connections]
+                ),
+                Mt5PositionSnapshot.trade_id.in_([trade.id for trade in open_trades]),
+            )
+        )
+        snapshots = snapshot_result.scalars().all()
+        snapshot_by_trade_id = {
+            snapshot.trade_id: snapshot
+            for snapshot in snapshots
+            if snapshot.trade_id
+        }
+
+        connection_by_account_id = {
+            connection.trading_account_id: connection for connection in connections
+        }
+
+        connection_statuses = [
+            {
+                "connectionId": connection.id,
+                "tradingAccountId": connection.trading_account_id,
+                "tradingAccountName": connection.trading_account.name,
+                "mt5Login": connection.mt5_login,
+                "serverName": connection.server_name,
+                "connectionStatus": connection.status.value,
+                "liveStatus": resolve_connection_live_status(
+                    last_heartbeat_at=connection.last_heartbeat_at
+                ),
+                "lastHeartbeatAt": (
+                    connection.last_heartbeat_at.isoformat()
+                    if connection.last_heartbeat_at
+                    else None
+                ),
+                "lastSnapshotAt": (
+                    connection.last_position_snapshot_at.isoformat()
+                    if connection.last_position_snapshot_at
+                    else None
+                ),
+            }
+            for connection in connections
+        ]
+
+        positions = []
+        for trade in open_trades:
+            snapshot = snapshot_by_trade_id.get(trade.id)
+            connection = connection_by_account_id.get(trade.trading_account_id)
+            connection_live_status: LiveDataStatus = (
+                resolve_connection_live_status(
+                    last_heartbeat_at=connection.last_heartbeat_at
+                )
+                if connection
+                else "DISCONNECTED"
+            )
+            live_status = (
+                resolve_position_live_status(
+                    connection_status=connection_live_status,
+                    snapshot_at=snapshot.snapshot_at if snapshot else None,
+                )
+                if trade.source.value == "MT5"
+                else "LIVE"
+            )
+
+            positions.append(
+                {
+                    "id": trade.id,
+                    "tradingAccountId": trade.trading_account_id,
+                    "tradingAccount": {
+                        "id": trade.trading_account.id,
+                        "name": trade.trading_account.name,
+                        "currency": trade.trading_account.currency,
+                    },
+                    "source": trade.source.value,
+                    "symbol": trade.symbol,
+                    "direction": trade.direction.value,
+                    "status": trade.status.value,
+                    "averageEntryPrice": str(trade.average_entry_price),
+                    "currentPrice": (
+                        str(snapshot.current_price) if snapshot else None
+                    ),
+                    "currentStopLoss": (
+                        str(trade.current_stop_loss)
+                        if trade.current_stop_loss is not None
+                        else None
+                    ),
+                    "currentTakeProfit": (
+                        str(trade.current_take_profit)
+                        if trade.current_take_profit is not None
+                        else None
+                    ),
+                    "currentVolume": str(trade.current_volume),
+                    "initialRiskAmount": (
+                        str(trade.initial_risk_amount)
+                        if trade.initial_risk_amount is not None
+                        else None
+                    ),
+                    "floatingPnl": (
+                        str(snapshot.floating_pnl) if snapshot else None
+                    ),
+                    "currentR": self._calculate_current_r(
+                        trade.initial_risk_amount,
+                        snapshot.floating_pnl if snapshot else None,
+                    ),
+                    "openedAt": trade.opened_at.isoformat(),
+                    "lastSyncedAt": (
+                        snapshot.snapshot_at.isoformat() if snapshot else None
+                    ),
+                    "liveStatus": live_status,
+                }
+            )
+
+        aggregate_live_status = self._resolve_aggregate_live_status(
+            [item["liveStatus"] for item in connection_statuses],
+            [item["liveStatus"] for item in positions],
+        )
+
+        return {
+            "liveStatus": aggregate_live_status,
+            "connections": connection_statuses,
+            "positions": positions,
+        }
+
+    @staticmethod
+    def _calculate_current_r(initial_risk_amount, floating_pnl) -> str | None:
+        if initial_risk_amount is None or floating_pnl is None:
+            return None
+
+        risk = float(initial_risk_amount)
+        if risk <= 0:
+            return None
+
+        return f"{float(floating_pnl) / risk:.4f}"
+
+    @staticmethod
+    def _resolve_aggregate_live_status(
+        connection_statuses: list[LiveDataStatus],
+        position_statuses: list[LiveDataStatus],
+    ) -> LiveDataStatus:
+        statuses = [*connection_statuses, *position_statuses]
+
+        if not statuses:
+            return "DISCONNECTED"
+
+        if all(status == "DISCONNECTED" for status in statuses):
+            return "DISCONNECTED"
+
+        if any(status == "LIVE" for status in statuses):
+            return "LIVE"
+
+        return "STALE"
+
+
+async def get_live_trades_service(
+    db: DbSession,
+    accounts_service: AccountsServiceDep,
+) -> LiveTradesService:
+    return LiveTradesService(db, accounts_service)
+
+
+LiveTradesServiceDep = Annotated[LiveTradesService, Depends(get_live_trades_service)]

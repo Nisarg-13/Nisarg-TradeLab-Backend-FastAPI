@@ -1,0 +1,83 @@
+from datetime import datetime
+from typing import TypedDict
+
+from .sessions import (
+    TRADING_SESSION_LABELS,
+    format_two_hour_window_label,
+    get_trading_session,
+    get_two_hour_window_start,
+)
+from .timezone import DAY_OF_WEEK_LABELS, format_hour_label, get_zoned_date_parts
+from .trade_metrics import MetricTrade, group_trade_metrics
+
+
+class TimeAnalyticsTrade(MetricTrade):
+    opened_at: datetime
+
+
+class TimeAnalyticsResult(TypedDict):
+    hours: list
+    two_hour_windows: list
+    days_of_week: list
+    months: list
+    sessions: list
+
+
+def summarize_time_analytics(
+    trades: list[TimeAnalyticsTrade],
+    time_zone: str,
+) -> TimeAnalyticsResult:
+    with_parts = []
+    for trade in trades:
+        parts = get_zoned_date_parts(trade["opened_at"], time_zone)
+        with_parts.append(
+            {
+                **trade,
+                "parts": parts,
+                "session": get_trading_session(parts["hour"]),
+            }
+        )
+
+    hours = group_trade_metrics(
+        with_parts,
+        lambda trade: str(trade["parts"]["hour"]),
+        lambda key, _grouped: format_hour_label(int(key)),
+    )
+    hours.sort(key=lambda group: int(group["key"]))
+
+    days_of_week = group_trade_metrics(
+        with_parts,
+        lambda trade: str(trade["parts"]["day_of_week"]),
+        lambda key, _grouped: DAY_OF_WEEK_LABELS[int(key)],
+    )
+    days_of_week.sort(key=lambda group: int(group["key"]))
+
+    months = group_trade_metrics(
+        with_parts,
+        lambda trade: trade["parts"]["month_key"],
+        lambda key, grouped_trades: grouped_trades[0]["parts"]["month_label"]
+        if grouped_trades
+        else key,
+    )
+    months.sort(key=lambda group: group["key"])
+
+    sessions = group_trade_metrics(
+        with_parts,
+        lambda trade: trade["session"],
+        lambda key, _grouped: TRADING_SESSION_LABELS[key],
+    )
+
+    two_hour_windows = group_trade_metrics(
+        with_parts,
+        lambda trade: str(get_two_hour_window_start(trade["parts"]["hour"])),
+        lambda key, _grouped: format_two_hour_window_label(int(key)),
+    )
+    two_hour_windows.sort(key=lambda group: int(group["key"]))
+
+    return {
+        "hours": hours,
+        "two_hour_windows": two_hour_windows,
+        "days_of_week": days_of_week,
+        "months": months,
+        "sessions": sessions,
+    }

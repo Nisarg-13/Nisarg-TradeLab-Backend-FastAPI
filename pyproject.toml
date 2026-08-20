@@ -1,0 +1,26 @@
+[project]
+name = "nisarg-tradelab-backend-fastapi"
+version = "0.1.0"
+description = "Nisarg TradeLab FastAPI backend"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]",
+    "asyncpg",
+    "pydantic-settings",
+    "python-multipart",
+    "httpx",
+    "clerk-backend-api",
+    "cuid2",
+]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
