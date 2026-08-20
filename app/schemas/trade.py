@@ -132,7 +132,16 @@ class CloseTradeInput(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-TradeSort = Literal["openedAt_desc", "openedAt_asc", "netPnl_desc", "netPnl_asc"]
+TradeSort = Literal[
+    "openedAt_desc",
+    "openedAt_asc",
+    "netPnl_desc",
+    "netPnl_asc",
+    "duration_desc",
+    "duration_asc",
+    "direction_desc",
+    "direction_asc",
+]
 
 
 class ListTradesQuery(BaseModel):

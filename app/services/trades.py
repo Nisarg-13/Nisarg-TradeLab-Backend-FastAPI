@@ -712,6 +712,16 @@ class TradesService:
             return Trade.net_pnl.desc()
         if sort == "netPnl_asc":
             return Trade.net_pnl.asc()
+        if sort == "duration_desc":
+            duration = func.coalesce(Trade.closed_at, func.now()) - Trade.opened_at
+            return duration.desc()
+        if sort == "duration_asc":
+            duration = func.coalesce(Trade.closed_at, func.now()) - Trade.opened_at
+            return duration.asc()
+        if sort == "direction_desc":
+            return Trade.direction.desc()
+        if sort == "direction_asc":
+            return Trade.direction.asc()
         return Trade.opened_at.desc()
 
     async def _get_instrument_spec(
