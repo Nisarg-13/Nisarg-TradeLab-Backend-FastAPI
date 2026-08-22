@@ -723,6 +723,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
+    { name = "certifi" },
     { name = "clerk-backend-api" },
     { name = "cuid2" },
     { name = "fastapi", extra = ["standard"] },
@@ -735,6 +736,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "asyncpg" },
+    { name = "certifi" },
     { name = "clerk-backend-api" },
     { name = "cuid2" },
     { name = "fastapi", extras = ["standard"] },

@@ -83,6 +83,7 @@ class AnalyticsQuery(BaseModel):
     risk_max: Optional[float] = Field(None, ge=0, alias="riskMax")
     session: Optional[TradingSession] = None
     result: Optional[TradeResult] = None
+    timezone: Optional[str] = Field(None, min_length=1)
 
     model_config = {"populate_by_name": True}
 

@@ -1,6 +1,6 @@
 from typing import TypedDict
 
-from .trade_metrics import MetricTrade, TradeMetricsGroup, group_trade_metrics
+from .trade_metrics import MetricTrade, TradeMetricsGroup, empty_trade_metrics_group, group_trade_metrics
 
 
 class PlannedRrTrade(MetricTrade):
@@ -44,19 +44,7 @@ def _get_planned_rr_bucket(planned_rr: float) -> PlannedRrBucket:
 
 
 def _empty_bucket(bucket: PlannedRrBucket) -> TradeMetricsGroup:
-    return {
-        "key": bucket["key"],
-        "label": bucket["label"],
-        "trade_count": 0,
-        "net_pnl": 0.0,
-        "total_r": None,
-        "win_rate": None,
-        "average_r": None,
-        "money_expectancy": None,
-        "r_expectancy": None,
-        "profit_factor": None,
-        "sample_confidence": "INSUFFICIENT",
-    }
+    return empty_trade_metrics_group(bucket["key"], bucket["label"])
 
 
 def summarize_planned_rr_analytics(trades: list[PlannedRrTrade]) -> list[TradeMetricsGroup]:

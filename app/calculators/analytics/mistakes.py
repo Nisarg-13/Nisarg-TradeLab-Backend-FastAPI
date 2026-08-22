@@ -12,6 +12,8 @@ class MistakeAnalyticsResult(TypedDict):
     mistake_id: str
     mistake_name: str
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     total_r: float | None
     average_r: float | None
@@ -42,6 +44,8 @@ def summarize_mistake_analytics(
                 "mistake_id": mistake_id,
                 "mistake_name": grouped_trades[0].get("mistake_name", mistake_id),
                 "trade_count": metrics["trade_count"],
+                "win_count": metrics["win_count"],
+                "loss_count": metrics["loss_count"],
                 "net_pnl": metrics["net_pnl"],
                 "total_r": metrics["total_r"],
                 "average_r": metrics["average_r"],

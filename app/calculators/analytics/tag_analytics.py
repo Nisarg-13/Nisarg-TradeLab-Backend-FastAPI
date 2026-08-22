@@ -12,6 +12,8 @@ class TagAnalyticsResult(TypedDict):
     tag_id: str
     tag_name: str
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     total_r: float | None
     average_r: float | None
@@ -40,6 +42,8 @@ def summarize_tag_analytics(trades: list[TagAnalyticsTrade]) -> list[TagAnalytic
                 "tag_id": tag_id,
                 "tag_name": grouped_trades[0].get("tag_name", tag_id),
                 "trade_count": metrics["trade_count"],
+                "win_count": metrics["win_count"],
+                "loss_count": metrics["loss_count"],
                 "net_pnl": metrics["net_pnl"],
                 "total_r": metrics["total_r"],
                 "average_r": metrics["average_r"],

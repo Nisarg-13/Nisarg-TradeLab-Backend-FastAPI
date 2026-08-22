@@ -10,6 +10,7 @@ dependencies = [
     "pydantic-settings",
     "python-multipart",
     "httpx",
+    "certifi",
     "clerk-backend-api",
     "cuid2",
 ]

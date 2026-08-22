@@ -1,9 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.dependencies.services import AnalyticsServiceDep, CurrentUser
+from app.calculators.analytics.timezone_resolver import resolve_analytics_timezone
 from app.schemas.analytics import AnalyticsQuery, HeatmapQuery, PeriodComparisonQuery
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+
+def _analytics_timezone(user, query: AnalyticsQuery) -> str:
+    return resolve_analytics_timezone(user.timezone, query.timezone)
 
 
 @router.get("/summary")
@@ -33,7 +38,19 @@ async def get_sessions(
     query: AnalyticsQuery = Depends(),
 ):
     data = await analytics_service.get_session_performance_for_user(
-        user.id, query, user.timezone
+        user.id, query, _analytics_timezone(user, query)
+    )
+    return {"data": data}
+
+
+@router.get("/sessions/dashboard")
+async def get_sessions_dashboard(
+    user: CurrentUser,
+    analytics_service: AnalyticsServiceDep,
+    query: AnalyticsQuery = Depends(),
+):
+    data = await analytics_service.get_session_dashboard_for_user(
+        user.id, query, _analytics_timezone(user, query)
     )
     return {"data": data}
 
@@ -74,7 +91,9 @@ async def get_time_analytics(
     analytics_service: AnalyticsServiceDep,
     query: AnalyticsQuery = Depends(),
 ):
-    data = await analytics_service.get_time_analytics_for_user(user.id, query, user.timezone)
+    data = await analytics_service.get_time_analytics_for_user(
+        user.id, query, _analytics_timezone(user, query)
+    )
     return {"data": data}
 
 
@@ -85,7 +104,10 @@ async def get_heatmap(
     query: HeatmapQuery = Depends(),
 ):
     data = await analytics_service.get_heatmap_for_user(
-        user.id, query, user.timezone, query.metric.value
+        user.id,
+        query,
+        _analytics_timezone(user, query),
+        query.metric.value,
     )
     return {"data": data}
 
@@ -214,7 +236,9 @@ async def get_insights(
     analytics_service: AnalyticsServiceDep,
     query: AnalyticsQuery = Depends(),
 ):
-    data = await analytics_service.get_insights_for_user(user.id, query, user.timezone)
+    data = await analytics_service.get_insights_for_user(
+        user.id, query, _analytics_timezone(user, query)
+    )
     return {"data": data}
 
 

@@ -88,6 +88,8 @@ Verify:
 
 Do not commit `.env` (see `.gitignore`).
 
+**macOS + Neon:** If you see `SSL: CERTIFICATE_VERIFY_FAILED`, ensure dependencies are installed (`pip install -e .`). The app uses the `certifi` CA bundle for PostgreSQL SSL. You can also run Python's **Install Certificates.command** (in your Python 3.x folder).
+
 ---
 
 ## Environment variables

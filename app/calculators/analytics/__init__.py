@@ -84,6 +84,7 @@ from .sessions import (
     get_trading_session,
     get_two_hour_window_start,
 )
+from .session_dashboard import summarize_session_weekday_matrix
 from .streak_behavior import summarize_after_loss_buckets, summarize_after_win_buckets
 from .streaks import calculate_streaks
 from .tag_analytics import summarize_tag_analytics
@@ -177,6 +178,7 @@ __all__ = [
     "summarize_psychology_analytics",
     "summarize_risk_stats",
     "summarize_rolling_performance",
+    "summarize_session_weekday_matrix",
     "summarize_tag_analytics",
     "summarize_time_analytics",
     "summarize_trade_metrics",

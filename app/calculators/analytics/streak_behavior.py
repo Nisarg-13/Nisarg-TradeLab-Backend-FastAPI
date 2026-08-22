@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal, TypedDict
 
-from .trade_metrics import MetricTrade, TradeMetricsGroup, group_trade_metrics
+from .trade_metrics import MetricTrade, TradeMetricsGroup, empty_trade_metrics_group, group_trade_metrics
 
 StreakBucketKey = Literal["normal", "after_1", "after_2", "after_3_plus"]
 
@@ -68,19 +68,7 @@ def _count_preceding_streak(
 
 
 def _empty_bucket(definition: dict) -> TradeMetricsGroup:
-    return {
-        "key": definition["key"],
-        "label": definition["label"],
-        "trade_count": 0,
-        "net_pnl": 0.0,
-        "total_r": None,
-        "win_rate": None,
-        "average_r": None,
-        "money_expectancy": None,
-        "r_expectancy": None,
-        "profit_factor": None,
-        "sample_confidence": "INSUFFICIENT",
-    }
+    return empty_trade_metrics_group(definition["key"], definition["label"])
 
 
 def _summarize_streak_buckets(

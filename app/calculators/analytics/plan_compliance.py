@@ -7,7 +7,7 @@ from .expectancy import (
 )
 from .pnl import calculate_net_pnl, calculate_profit_factor
 from .sample_confidence import SampleConfidence, get_sample_confidence
-from .win_rate import calculate_win_rate
+from .win_rate import calculate_win_rate, count_losses, count_wins
 
 PlanComplianceStatus = Literal[
     "FOLLOWED",
@@ -27,6 +27,8 @@ class PlanComplianceGroup(TypedDict):
     label: str
     plan_compliance: PlanComplianceStatus
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     win_rate: float | None
     average_r: float | None
@@ -53,6 +55,8 @@ def _summarize_group(
         "label": label,
         "plan_compliance": plan_compliance,
         "trade_count": len(trades),
+        "win_count": count_wins(trades),
+        "loss_count": count_losses(trades),
         "net_pnl": calculate_net_pnl(trades),
         "win_rate": calculate_win_rate(trades),
         "average_r": calculate_average_r(trades),

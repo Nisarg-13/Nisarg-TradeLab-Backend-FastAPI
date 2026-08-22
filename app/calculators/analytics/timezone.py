@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import TypedDict
 from zoneinfo import ZoneInfo
 
+from app.utils.datetime import ensure_utc
+
 MONTH_ABBR = [
     "Jan",
     "Feb",
@@ -46,7 +48,7 @@ class ZonedDateParts(TypedDict):
 
 
 def get_zoned_date_parts(date: datetime, time_zone: str) -> ZonedDateParts:
-    local = date.astimezone(ZoneInfo(time_zone))
+    local = ensure_utc(date).astimezone(ZoneInfo(time_zone))
     hour = local.hour
     weekday = local.strftime("%a")
     year = local.strftime("%Y")
@@ -58,6 +60,12 @@ def get_zoned_date_parts(date: datetime, time_zone: str) -> ZonedDateParts:
         "month_key": f"{year}-{month}",
         "month_label": f"{month} {year}",
     }
+
+
+def format_local_datetime(date: datetime, time_zone: str) -> str:
+    local = ensure_utc(date).astimezone(ZoneInfo(time_zone))
+    hour = local.strftime("%I").lstrip("0") or "12"
+    return f"{local.strftime('%b %d, %Y')}, {hour}:{local.strftime('%M:%S %p')}"
 
 
 def format_hour_label(hour: int) -> str:

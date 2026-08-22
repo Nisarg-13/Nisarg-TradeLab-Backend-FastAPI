@@ -67,6 +67,8 @@ class GroupedPerformance(TypedDict):
     key: str
     label: str
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     gross_profit: float
     gross_loss: float
@@ -124,6 +126,8 @@ def _summarize_trades(
         "key": key,
         "label": label,
         "trade_count": len(trades),
+        "win_count": count_wins(trades),
+        "loss_count": count_losses(trades),
         "net_pnl": calculate_net_pnl(trades),
         "gross_profit": calculate_gross_profit(trades),
         "gross_loss": calculate_gross_loss(trades),

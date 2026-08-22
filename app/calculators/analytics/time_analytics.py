@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TypedDict
+from typing import Callable, TypedDict
 
 from .sessions import (
     TRADING_SESSION_LABELS,
@@ -14,6 +14,14 @@ from .trade_metrics import MetricTrade, group_trade_metrics
 
 class TimeAnalyticsTrade(MetricTrade):
     opened_at: datetime
+    trade_id: str
+    symbol: str
+
+
+class TimeGroupEntry(TypedDict):
+    trade_id: str
+    symbol: str
+    opened_at: datetime
 
 
 class TimeAnalyticsResult(TypedDict):
@@ -22,6 +30,30 @@ class TimeAnalyticsResult(TypedDict):
     days_of_week: list
     months: list
     sessions: list
+
+
+def index_time_group_entries(
+    trades: list[TimeAnalyticsTrade],
+    time_zone: str,
+    bucket_for_hour: Callable[[int], int],
+) -> dict[str, list[TimeGroupEntry]]:
+    entries_by_key: dict[str, list[TimeGroupEntry]] = {}
+
+    for trade in trades:
+        parts = get_zoned_date_parts(trade["opened_at"], time_zone)
+        key = str(bucket_for_hour(parts["hour"]))
+        entries_by_key.setdefault(key, []).append(
+            {
+                "trade_id": trade["trade_id"],
+                "symbol": trade["symbol"],
+                "opened_at": trade["opened_at"],
+            }
+        )
+
+    for entries in entries_by_key.values():
+        entries.sort(key=lambda entry: entry["opened_at"])
+
+    return entries_by_key
 
 
 def summarize_time_analytics(

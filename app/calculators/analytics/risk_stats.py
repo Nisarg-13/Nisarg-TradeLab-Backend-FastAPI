@@ -7,7 +7,7 @@ from .expectancy import (
 )
 from .pnl import calculate_net_pnl, calculate_profit_factor
 from .sample_confidence import SampleConfidence, get_sample_confidence
-from .win_rate import calculate_win_rate
+from .win_rate import calculate_win_rate, count_losses, count_wins
 
 
 class RiskStatTrade(TypedDict):
@@ -21,6 +21,8 @@ class RiskStatGroup(TypedDict):
     risk_percentage_min: float | None
     risk_percentage_max: float | None
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     win_rate: float | None
     average_r: float | None
@@ -70,6 +72,8 @@ def _summarize_bucket(
         "risk_percentage_min": minimum,
         "risk_percentage_max": maximum,
         "trade_count": len(trades),
+        "win_count": count_wins(trades),
+        "loss_count": count_losses(trades),
         "net_pnl": calculate_net_pnl(trades),
         "win_rate": calculate_win_rate(trades),
         "average_r": calculate_average_r(trades),

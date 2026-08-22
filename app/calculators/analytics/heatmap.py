@@ -5,7 +5,7 @@ from .expectancy import calculate_average_r, calculate_money_expectancy
 from .pnl import calculate_net_pnl
 from .timezone import get_zoned_date_parts
 from .trade_metrics import MetricTrade
-from .win_rate import calculate_win_rate
+from .win_rate import calculate_win_rate, count_losses, count_wins
 
 HeatmapMetric = Literal["pnl", "averageR", "expectancy", "winRate", "tradeCount"]
 
@@ -18,6 +18,8 @@ class HeatmapCell(TypedDict):
     day_of_week: int
     hour: int
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     average_r: float | None
     win_rate: float | None
@@ -59,6 +61,8 @@ def build_heatmap(
                     "day_of_week": day_of_week,
                     "hour": hour,
                     "trade_count": len(grouped_trades),
+                    "win_count": count_wins(grouped_trades),
+                    "loss_count": count_losses(grouped_trades),
                     "net_pnl": calculate_net_pnl(grouped_trades),
                     "average_r": calculate_average_r(grouped_trades),
                     "win_rate": calculate_win_rate(grouped_trades),

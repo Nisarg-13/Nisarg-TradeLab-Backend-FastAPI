@@ -51,6 +51,8 @@ class SessionSymbolRow(TypedDict):
     session_label: str
     symbol: str
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     total_r: float | None
     win_rate: float | None
@@ -162,6 +164,8 @@ def _summarize_session_symbols(
                 "session_label": TRADING_SESSION_LABELS.get(session, session),
                 "symbol": symbol,
                 "trade_count": metrics["trade_count"],
+                "win_count": metrics["win_count"],
+                "loss_count": metrics["loss_count"],
                 "net_pnl": metrics["net_pnl"],
                 "total_r": metrics["total_r"],
                 "win_rate": metrics["win_rate"],

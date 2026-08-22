@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TypedDict
 
-from .trade_metrics import MetricTrade, TradeMetricsGroup, group_trade_metrics
+from .trade_metrics import MetricTrade, TradeMetricsGroup, empty_trade_metrics_group, group_trade_metrics
 
 
 class DurationTrade(MetricTrade):
@@ -37,19 +37,7 @@ def _get_duration_bucket(minutes: float) -> DurationBucket:
 
 
 def _empty_bucket(bucket: DurationBucket) -> TradeMetricsGroup:
-    return {
-        "key": bucket["key"],
-        "label": bucket["label"],
-        "trade_count": 0,
-        "net_pnl": 0.0,
-        "total_r": None,
-        "win_rate": None,
-        "average_r": None,
-        "money_expectancy": None,
-        "r_expectancy": None,
-        "profit_factor": None,
-        "sample_confidence": "INSUFFICIENT",
-    }
+    return empty_trade_metrics_group(bucket["key"], bucket["label"])
 
 
 def summarize_duration_analytics(trades: list[DurationTrade]) -> list[TradeMetricsGroup]:

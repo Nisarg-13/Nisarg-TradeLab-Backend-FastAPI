@@ -36,6 +36,7 @@ from app.schemas.trade import (
 )
 from app.services.accounts import AccountsService
 from app.services.instruments import InstrumentsService
+from app.utils.datetime import format_utc_iso
 from app.utils.decimal_format import format_decimal
 from app.utils.ids import generate_cuid
 from app.utils.ownership import assert_resource_ownership
@@ -602,8 +603,8 @@ class TradesService:
             ),
             "direction": trade.direction.value,
             "status": trade.status.value,
-            "openedAt": trade.opened_at.isoformat(),
-            "closedAt": trade.closed_at.isoformat() if trade.closed_at else None,
+            "openedAt": format_utc_iso(trade.opened_at),
+            "closedAt": format_utc_iso(trade.closed_at) if trade.closed_at else None,
             "averageEntryPrice": format_decimal(trade.average_entry_price),
             "averageExitPrice": format_decimal(trade.average_exit_price),
             "initialVolume": format_decimal(trade.initial_volume),
@@ -650,8 +651,8 @@ class TradesService:
                 for event in sorted(trade.events, key=lambda row: row.occurred_at)
             ],
             "review": self.to_review_response(trade.review) if trade.review else None,
-            "createdAt": trade.created_at.isoformat(),
-            "updatedAt": trade.updated_at.isoformat(),
+            "createdAt": format_utc_iso(trade.created_at),
+            "updatedAt": format_utc_iso(trade.updated_at),
         }
 
     def to_review_response(self, review: TradeReview) -> dict[str, Any]:
@@ -676,8 +677,8 @@ class TradesService:
             "whatWentWrong": review.what_went_wrong,
             "notes": review.notes,
             "lesson": review.lesson,
-            "createdAt": review.created_at.isoformat(),
-            "updatedAt": review.updated_at.isoformat(),
+            "createdAt": format_utc_iso(review.created_at),
+            "updatedAt": format_utc_iso(review.updated_at),
         }
 
     def _to_execution_response(self, execution: TradeExecution) -> dict[str, Any]:
@@ -691,7 +692,7 @@ class TradesService:
             "commission": str(execution.commission),
             "swap": str(execution.swap),
             "fee": str(execution.fee),
-            "executedAt": execution.executed_at.isoformat(),
+            "executedAt": format_utc_iso(execution.executed_at),
         }
 
     def _to_event_response(self, event: TradeEvent) -> dict[str, Any]:
@@ -701,7 +702,7 @@ class TradesService:
             "type": event.type.value,
             "previousValue": event.previous_value,
             "newValue": event.new_value,
-            "occurredAt": event.occurred_at.isoformat(),
+            "occurredAt": format_utc_iso(event.occurred_at),
             "metadata": event.metadata_,
         }
 

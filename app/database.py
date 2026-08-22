@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 import ssl
 
+import certifi
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -13,6 +14,11 @@ from app.config import get_settings
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
+
+
+def _create_ssl_context() -> ssl.SSLContext:
+    """Use certifi CA bundle — fixes macOS Python.org SSL verify failures with Neon."""
+    return ssl.create_default_context(cafile=certifi.where())
 
 
 def _normalize_database_url(database_url: str) -> tuple[str, dict[str, object]]:
@@ -28,7 +34,7 @@ def _normalize_database_url(database_url: str) -> tuple[str, dict[str, object]]:
 
     # asyncpg does not accept libpq-style sslmode/channel_binding query params.
     if query.pop("sslmode", None) or query.pop("ssl", None):
-        connect_args["ssl"] = ssl.create_default_context()
+        connect_args["ssl"] = _create_ssl_context()
     query.pop("channel_binding", None)
 
     clean_query = urlencode({key: values[0] for key, values in query.items()})

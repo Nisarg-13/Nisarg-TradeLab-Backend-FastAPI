@@ -51,6 +51,8 @@ class RollingPerformanceSummary(TypedDict):
 
 class PeriodMetricsSummary(TypedDict):
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     total_r: float | None
     win_rate: float | None
@@ -166,6 +168,8 @@ def summarize_period_metrics(
 
     return {
         "trade_count": len(trades),
+        "win_count": summary["win_count"],
+        "loss_count": summary["loss_count"],
         "net_pnl": summary["net_pnl"],
         "total_r": calculate_total_r(trades),
         "win_rate": summary["win_rate"],

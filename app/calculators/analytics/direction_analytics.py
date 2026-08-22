@@ -17,6 +17,8 @@ class DirectionSideMetrics(TypedDict):
     direction: Direction
     label: str
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     total_r: float | None
     win_rate: float | None
@@ -49,6 +51,8 @@ def _to_side_metrics(
         "direction": direction,
         "label": metrics["label"],
         "trade_count": metrics["trade_count"],
+        "win_count": metrics["win_count"],
+        "loss_count": metrics["loss_count"],
         "net_pnl": metrics["net_pnl"],
         "total_r": metrics["total_r"],
         "win_rate": metrics["win_rate"],

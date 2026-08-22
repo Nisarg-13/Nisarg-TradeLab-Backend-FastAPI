@@ -14,12 +14,16 @@ class AfterLossesTrade(TypedDict):
 class AfterLossesSummary(TypedDict):
     loss_streak_threshold: int
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     win_rate: float | None
     average_r: float | None
     r_expectancy: float | None
     sample_confidence: SampleConfidence
     baseline_trade_count: int
+    baseline_win_count: int
+    baseline_loss_count: int
     baseline_win_rate: float | None
     baseline_net_pnl: float
 
@@ -74,12 +78,16 @@ def summarize_after_losses_performance(
     return {
         "loss_streak_threshold": loss_streak_threshold,
         "trade_count": len(selected),
+        "win_count": metrics["win_count"],
+        "loss_count": metrics["loss_count"],
         "net_pnl": metrics["net_pnl"],
         "win_rate": metrics["win_rate"],
         "average_r": metrics["average_r"],
         "r_expectancy": metrics["r_expectancy"],
         "sample_confidence": get_sample_confidence(len(selected)),
         "baseline_trade_count": len(trades),
+        "baseline_win_count": baseline["win_count"],
+        "baseline_loss_count": baseline["loss_count"],
         "baseline_win_rate": baseline["win_rate"],
         "baseline_net_pnl": baseline["net_pnl"],
     }

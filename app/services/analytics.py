@@ -42,6 +42,7 @@ from app.calculators.analytics import (
     summarize_psychology_analytics,
     summarize_risk_stats,
     summarize_rolling_performance,
+    summarize_session_weekday_matrix,
     summarize_tag_analytics,
     summarize_time_analytics,
     to_edge_finder_trade,
@@ -364,6 +365,8 @@ class AnalyticsService:
             "afterLossesComparison": {
                 "lossStreakThreshold": after_losses["loss_streak_threshold"],
                 "tradeCount": after_losses["trade_count"],
+                "winCount": after_losses["win_count"],
+                "lossCount": after_losses["loss_count"],
                 "netPnl": self._format_number(after_losses["net_pnl"]),
                 "winRate": (
                     None
@@ -382,6 +385,8 @@ class AnalyticsService:
                 ),
                 "sampleConfidence": after_losses["sample_confidence"],
                 "baselineTradeCount": after_losses["baseline_trade_count"],
+                "baselineWinCount": after_losses["baseline_win_count"],
+                "baselineLossCount": after_losses["baseline_loss_count"],
                 "baselineWinRate": (
                     None
                     if after_losses["baseline_win_rate"] is None
@@ -472,19 +477,96 @@ class AnalyticsService:
             for group in analytics["sessions"]
         ]
 
-    async def get_time_analytics_for_user(
+    async def get_session_dashboard_for_user(
         self, user_id: str, query: AnalyticsQuery, timezone: str
     ) -> dict[str, Any]:
         closed_trades = (await self.load_trades(user_id, query))["closed_trades"]
-        analytics = summarize_time_analytics(
-            [self._to_time_trade(trade) for trade in closed_trades],
-            timezone,
-        )
+        time_trades = [self._to_time_trade(trade) for trade in closed_trades]
+        analytics = summarize_time_analytics(time_trades, timezone)
+        weekday_cells = summarize_session_weekday_matrix(time_trades, timezone)
 
         return {
-            "hours": [self._format_metrics_group(group) for group in analytics["hours"]],
+            "sessions": [
+                {
+                    "session": group["key"],
+                    "sessionLabel": group["label"],
+                    **{
+                        key: value
+                        for key, value in self._format_metrics_group(group).items()
+                        if key not in {"key", "label"}
+                    },
+                }
+                for group in analytics["sessions"]
+            ],
+            "weekdayCells": [
+                {
+                    "session": cell["session"],
+                    "sessionLabel": cell["session_label"],
+                    "dayOfWeek": cell["day_of_week"],
+                    "dayLabel": cell["day_label"],
+                    "tradeCount": cell["trade_count"],
+                    "winCount": cell["win_count"],
+                    "lossCount": cell["loss_count"],
+                    "netPnl": self._format_number(cell["net_pnl"]),
+                    "winRate": (
+                        None
+                        if cell["win_rate"] is None
+                        else self._format_number(cell["win_rate"] * 100)
+                    ),
+                    "moneyExpectancy": (
+                        None
+                        if cell["money_expectancy"] is None
+                        else self._format_number(cell["money_expectancy"])
+                    ),
+                }
+                for cell in weekday_cells
+            ],
+        }
+
+    async def get_time_analytics_for_user(
+        self, user_id: str, query: AnalyticsQuery, timezone: str
+    ) -> dict[str, Any]:
+        from app.calculators.analytics.sessions import get_two_hour_window_start
+        from app.calculators.analytics.time_analytics import index_time_group_entries
+        from app.calculators.analytics.timezone import format_local_datetime
+        from app.utils.datetime import format_utc_iso
+
+        closed_trades = (await self.load_trades(user_id, query))["closed_trades"]
+        time_trades = [self._to_time_trade(trade) for trade in closed_trades]
+        analytics = summarize_time_analytics(time_trades, timezone)
+        hour_entries = index_time_group_entries(
+            time_trades, timezone, lambda hour: hour
+        )
+        two_hour_entries = index_time_group_entries(
+            time_trades, timezone, get_two_hour_window_start
+        )
+
+        def format_group_with_entries(
+            group: TradeMetricsGroup,
+            entries_by_key: dict[str, list],
+        ) -> dict[str, Any]:
+            formatted = self._format_metrics_group(group)
+            formatted["entries"] = [
+                {
+                    "tradeId": entry["trade_id"],
+                    "symbol": entry["symbol"],
+                    "openedAt": format_utc_iso(entry["opened_at"]),
+                    "openedAtLocal": format_local_datetime(
+                        entry["opened_at"], timezone
+                    ),
+                }
+                for entry in entries_by_key.get(group["key"], [])
+            ]
+            return formatted
+
+        return {
+            "hours": [
+                format_group_with_entries(group, hour_entries)
+                for group in analytics["hours"]
+            ],
             "twoHourWindows": [
-                self._format_metrics_group(group) for group in analytics["two_hour_windows"]
+                format_group_with_entries(group, two_hour_entries)
+                for group in analytics["two_hour_windows"]
             ],
             "daysOfWeek": [
                 self._format_metrics_group(group) for group in analytics["days_of_week"]
@@ -534,6 +616,8 @@ class AnalyticsService:
                     "sessionLabel": row["session_label"],
                     "symbol": row["symbol"],
                     "tradeCount": row["trade_count"],
+                    "winCount": row["win_count"],
+                    "lossCount": row["loss_count"],
                     "netPnl": self._format_number(row["net_pnl"]),
                     "totalR": (
                         None if row["total_r"] is None else self._format_number(row["total_r"])
@@ -682,6 +766,8 @@ class AnalyticsService:
                 "tagId": group["tag_id"],
                 "tagName": group["tag_name"],
                 "tradeCount": group["trade_count"],
+                "winCount": group["win_count"],
+                "lossCount": group["loss_count"],
                 "netPnl": self._format_number(group["net_pnl"]),
                 "totalR": (
                     None if group["total_r"] is None else self._format_number(group["total_r"])
@@ -736,6 +822,8 @@ class AnalyticsService:
                 "mistakeId": group["mistake_id"],
                 "mistakeName": group["mistake_name"],
                 "tradeCount": group["trade_count"],
+                "winCount": group["win_count"],
+                "lossCount": group["loss_count"],
                 "netPnl": self._format_number(group["net_pnl"]),
                 "totalR": (
                     None if group["total_r"] is None else self._format_number(group["total_r"])
@@ -880,6 +968,8 @@ class AnalyticsService:
                     "dayOfWeek": cell["day_of_week"],
                     "hour": cell["hour"],
                     "tradeCount": cell["trade_count"],
+                    "winCount": cell["win_count"],
+                    "lossCount": cell["loss_count"],
                     "netPnl": self._format_number(cell["net_pnl"]),
                     "averageR": (
                         None
@@ -1526,6 +1616,8 @@ class AnalyticsService:
 
     def _to_time_trade(self, trade: Trade) -> dict[str, Any]:
         return {
+            "trade_id": trade.id,
+            "symbol": trade.symbol,
             "net_pnl": self._to_float(trade.net_pnl) or 0.0,
             "realized_r": self._to_float(trade.realized_r),
             "opened_at": trade.opened_at,
@@ -1570,6 +1662,8 @@ class AnalyticsService:
     def _format_grouped_performance(self, group: GroupedPerformance) -> dict[str, Any]:
         return {
             "tradeCount": group["trade_count"],
+            "winCount": group["win_count"],
+            "lossCount": group["loss_count"],
             "netPnl": self._format_number(group["net_pnl"]),
             "grossProfit": self._format_number(group["gross_profit"]),
             "grossLoss": self._format_number(group["gross_loss"]),
@@ -1613,6 +1707,8 @@ class AnalyticsService:
             "direction": side["direction"],
             "label": side["label"],
             "tradeCount": side["trade_count"],
+            "winCount": side["win_count"],
+            "lossCount": side["loss_count"],
             "netPnl": self._format_number(side["net_pnl"]),
             "totalR": (
                 None if side["total_r"] is None else self._format_number(side["total_r"])
@@ -1650,6 +1746,8 @@ class AnalyticsService:
             "key": group["key"],
             "label": group["label"],
             "tradeCount": group["trade_count"],
+            "winCount": group["win_count"],
+            "lossCount": group["loss_count"],
             "netPnl": self._format_number(group["net_pnl"]),
             "totalR": (
                 None if group["total_r"] is None else self._format_number(group["total_r"])
@@ -1685,6 +1783,8 @@ class AnalyticsService:
     def _format_period_metrics(self, metrics: dict[str, Any]) -> dict[str, Any]:
         return {
             "tradeCount": metrics["trade_count"],
+            "winCount": metrics["win_count"],
+            "lossCount": metrics["loss_count"],
             "netPnl": self._format_number(metrics["net_pnl"]),
             "totalR": (
                 None if metrics["total_r"] is None else self._format_number(metrics["total_r"])
@@ -1805,6 +1905,8 @@ class AnalyticsService:
             "label": group["label"],
             "planCompliance": group["plan_compliance"],
             "tradeCount": group["trade_count"],
+            "winCount": group["win_count"],
+            "lossCount": group["loss_count"],
             "netPnl": self._format_number(group["net_pnl"]),
             "winRate": (
                 None
@@ -1848,6 +1950,8 @@ class AnalyticsService:
                 else self._format_number(group["risk_percentage_max"])
             ),
             "tradeCount": group["trade_count"],
+            "winCount": group["win_count"],
+            "lossCount": group["loss_count"],
             "netPnl": self._format_number(group["net_pnl"]),
             "winRate": (
                 None

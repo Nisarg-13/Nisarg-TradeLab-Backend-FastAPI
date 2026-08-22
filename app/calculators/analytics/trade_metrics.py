@@ -9,7 +9,7 @@ from .expectancy import (
 )
 from .pnl import calculate_net_pnl, calculate_profit_factor
 from .sample_confidence import SampleConfidence, get_sample_confidence
-from .win_rate import calculate_win_rate
+from .win_rate import calculate_win_rate, count_losses, count_wins
 
 
 class MetricTrade(TypedDict):
@@ -21,6 +21,8 @@ class TradeMetricsGroup(TypedDict):
     key: str
     label: str
     trade_count: int
+    win_count: int
+    loss_count: int
     net_pnl: float
     total_r: float | None
     win_rate: float | None
@@ -45,6 +47,8 @@ def summarize_trade_metrics(
         "key": key,
         "label": label,
         "trade_count": len(trades),
+        "win_count": count_wins(trades),
+        "loss_count": count_losses(trades),
         "net_pnl": calculate_net_pnl(trades),
         "total_r": total_r,
         "win_rate": calculate_win_rate(trades),
@@ -58,6 +62,24 @@ def summarize_trade_metrics(
 
 def summarize_metric_trades(trades: list[MetricTrade]) -> TradeMetricsGroup:
     return summarize_trade_metrics("all", "All trades", trades)
+
+
+def empty_trade_metrics_group(key: str, label: str) -> TradeMetricsGroup:
+    return {
+        "key": key,
+        "label": label,
+        "trade_count": 0,
+        "win_count": 0,
+        "loss_count": 0,
+        "net_pnl": 0.0,
+        "total_r": None,
+        "win_rate": None,
+        "average_r": None,
+        "money_expectancy": None,
+        "r_expectancy": None,
+        "profit_factor": None,
+        "sample_confidence": "INSUFFICIENT",
+    }
 
 
 def group_trade_metrics(
